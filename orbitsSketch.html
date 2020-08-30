@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>Making your first Phaser 3 Game - Part 1</title>
+    <title>Orbits</title>
     <script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.js"></script>
     <style type="text/css">
         body {
@@ -19,6 +19,12 @@
         width: window.innerWidth,
         height: window.innerHeight,
         backgroundColor: '#282c34',
+        physics: {
+            default: 'arcade',
+            arcade: {
+                gravity: { y: 0 }
+            }
+        },
         scene: {
             create: create,
             update: update
@@ -36,10 +42,42 @@
 
     let graphics;
 
-    function create() {
-        graphics = this.add.graphics();
+    class Planet {
+        constructor(scene, distance, color, radius) {
+            this.t = 0;
+            this.position = new Phaser.Math.Vector2();
+            this.radius = radius;
 
-        function calcOrbitDuration(distance) {
+            this.orbitDistance = distance;
+            this.mass = radius**2;
+            this.color = color;
+
+            this.orbitPath = new Phaser.Curves.Path();
+            this.orbitPath.add(new Phaser.Curves.Ellipse(
+                scene.cameras.main.centerX,
+                scene.cameras.main.centerY,
+                distance
+            ));
+
+            scene.tweens.add({
+                targets: this,
+                t: 1,   // Increase until t hits 1, then loop
+                duration: Math.ceil(this.calcOrbitDuration(distance)),
+                repeat: -1
+            });
+
+            graphics.clear();
+            graphics.fillStyle(this.color, 1);
+            // TODO: Why does shifting this position affect the image??? Generate image from (0,0), maybe?
+            graphics.fillCircle(radius, radius, this.radius);
+
+            const spriteKey = `planet${planets.length}`;
+            graphics.generateTexture(spriteKey, 2*radius, 2*radius);
+
+            this.sprite = scene.add.image(this.position.x, this.position.y, spriteKey);
+        }
+
+        calcOrbitDuration(distance) {
             // Assume 400 units away = 300s orbit
             //  Use Kepler's 3rd law to calculate expected duration
             const baseCircleArea = Math.PI * 400.0**2;
@@ -49,75 +87,113 @@
             return baseCircleTime * currentOrbitArea / baseCircleArea;
         }
 
-        function createPlanet(distance, color, radius) {
-            let planet = {
-                orbitPath: null,
-                orbitDistance: distance,
-                mass: radius**2,
-                object: null,
-                color: color
-            }
-
-            planet.object = {
-                t: 0,
-                position: new Phaser.Math.Vector2(),
-                radius: radius,
-            };
-            planet.orbitPath = new Phaser.Curves.Path();
-            planet.orbitPath.add(new Phaser.Curves.Ellipse(
-                this.cameras.main.centerX,
-                this.cameras.main.centerY,
-                distance
-            ));
-
-            this.tweens.add({
-                targets: planet.object,
-                t: 1,   // Increase until t hits 1, then loop
-                duration: Math.ceil(calcOrbitDuration(distance)),
-                repeat: -1
-            });
-
-            return planet;
+        drawObject() {
+            this.sprite.x = this.position.x;
+            this.sprite.y = this.position.y;
         }
 
-        planets.push(createPlanet.bind(this)(1e-5, 0xffff00, 50));
-        planets.push(createPlanet.bind(this)(300, 0xff00ff, 5));
-        planets.push(createPlanet.bind(this)(200, 0xff00ff, 5));
-        playerPlanet = createPlanet.bind(this)(400, 0xaaffaa, 5);
-        planets.push(playerPlanet);
-        planets.push(createPlanet.bind(this)(500, 0xff00ff, 15));
+        destroy() {
+            this.sprite.destroy();
+        }
+    }
 
-        gravityObjects.push({
-            position: new Phaser.Math.Vector2(this.cameras.main.centerX, 200),
-            velocity: new Phaser.Math.Vector2(50, 0),
-            drawObject() {
-                graphics.fillStyle(0xffaaaa);
-                graphics.fillCircle(this.position.x, this.position.y, 1);
+    // NOTE: Gravity objects are affected by gravity, but do NOT affect one another
+    class GravityObject {
+        constructor(scene, position, velocity, color) {
+            this.position = position;
+            this.velocity = velocity;
+            this.accel = new Phaser.Math.Vector2();
+
+            graphics.clear();
+            graphics.fillStyle(color, 1);
+            // TODO: Why does shifting this position affect the image??? Generate image from (0,0), maybe?
+            graphics.fillCircle(1, 1, 1);
+
+            const spriteKey = `gravityObject${gravityObjects.length}`;
+            graphics.generateTexture(spriteKey, 2, 2);
+
+            this.sprite = scene.add.image(this.position.x, this.position.y, spriteKey);
+        }
+
+        drawObject() {
+            this.sprite.x = this.position.x;
+            this.sprite.y = this.position.y;
+        }
+
+        getGravityAccelVector(objectPos) {
+            let accelVector = new Phaser.Math.Vector2();
+            for (let planet of planets) {
+                let toPlanet = planet.position.clone();
+                toPlanet.subtract(objectPos);
+                toPlanet.scale(planet.mass / toPlanet.length()**2);
+                accelVector.add(toPlanet);
             }
-        });
-        gravityObjects.push({
-            position: new Phaser.Math.Vector2(this.cameras.main.centerX + 502, this.cameras.main.centerY),
-            velocity: new Phaser.Math.Vector2(0, 2),
-            drawObject() {
-                graphics.fillStyle(0xaaaaff);
-                graphics.fillCircle(this.position.x, this.position.y, 1);
-            }
-        });
+            return accelVector;
+        }
+
+        updatePosition(timeDiff) {
+            // Update position via Verlet integration
+            let accelVector = this.getGravityAccelVector(this.position);
+            let newPos = this.position.clone();
+            newPos.add(this.velocity.clone().scale(timeDiff));
+            newPos.add(accelVector.clone().scale(timeDiff**2 / 2.0));
+
+            // Update position, save accel so we can update velocity later
+            this.position = newPos;
+            this.accel = accelVector;
+        }
+
+        updateVelocity(timeDiff) {
+            let newAccelVector = this.getGravityAccelVector(this.position);
+            let newVel = this.velocity.clone();
+            newVel.add(this.accel.clone().scale(timeDiff / 2.0));
+            newVel.add(newAccelVector.clone().scale(timeDiff / 2.0));
+
+            this.velocity = newVel;
+        }
+
+        destroy() {
+            this.sprite.destroy();
+        }
+    }
+
+
+    function create() {
+        graphics = this.add.graphics();
+
+        planets.push(new Planet(this, 1e-5, 0xffff00, 50));
+        planets.push(new Planet(this, 300, 0xff00ff, 5));
+        planets.push(new Planet(this, 200, 0xff00ff, 5));
+        playerPlanet = new Planet(this, 400, 0xaaffaa, 5);
+        planets.push(playerPlanet);
+        planets.push(new Planet(this, 500, 0xff00ff, 15));
+
+        gravityObjects.push(new GravityObject(
+            this,
+            new Phaser.Math.Vector2(this.cameras.main.centerX, 200),
+            new Phaser.Math.Vector2(50, 0),
+            0xffaaaa
+        ));
+        gravityObjects.push(new GravityObject(
+            this,
+            new Phaser.Math.Vector2(this.cameras.main.centerX + 502, this.cameras.main.centerY),
+            new Phaser.Math.Vector2(0, 2),
+            0xaaaaff
+        ));
 
         function fireNewProjectile(pointer) {
             if (!pointer.leftButtonDown()) {
                 return;
             }
             const mousePos = new Phaser.Math.Vector2(pointer.x, pointer.y);
-            let shotDirection = mousePos.clone().subtract(playerPlanet.object.position).normalize();
-            gravityObjects.push({
-                position: playerPlanet.object.position.clone().add(shotDirection.clone().scale(playerPlanet.object.radius)),
-                velocity: shotDirection.scale(50),
-                drawObject() {
-                    graphics.fillStyle(0xaaffaa);
-                    graphics.fillCircle(this.position.x, this.position.y, 1);
-                }
-            });
+            let shotDirection = mousePos.clone().subtract(playerPlanet.position).normalize();
+
+            gravityObjects.push(new GravityObject(
+                this,
+                playerPlanet.position.clone().add(shotDirection.clone().scale(playerPlanet.radius)),
+                shotDirection.scale(50),
+                0xaaffaa
+            ));
         }
 
         this.input.on('pointerdown', fireNewProjectile, this);
@@ -128,105 +204,77 @@
     }
 
     function update() {
-        function getAccelVector(objectPos) {
-            let accelVector = new Phaser.Math.Vector2();
-            for (let planet of planets) {
-                let toPlanet = planet.object.position.clone();
-                toPlanet.subtract(objectPos);
-
-                // Don't multiply by this object's mass
-                toPlanet.scale(planet.mass / toPlanet.length()**2);
-                accelVector.add(toPlanet);
-            }
-            return accelVector;
-        }
-
-        function updateGravityObjPosition(gravityObj, timeDiff) {
-            // Update position via Verlet integration
-            let accelVector = getAccelVector(gravityObj.position);
-
-            let newPos = gravityObj.position.clone();
-            newPos.add(gravityObj.velocity.clone().scale(timeDiff));
-            newPos.add(accelVector.clone().scale(timeDiff**2 / 2.0));
-
-            // Update position, save accel so we can update velocity later
-            gravityObj.position = newPos;
-            gravityObj.accel = accelVector;
-        }
-
-        function updateGravityObjVelocity(gravityObj, timeDiff) {
-            // Update velocity using Verlet integration
-            let newAccelVector = getAccelVector(gravityObj.position);
-
-            let newVel = gravityObj.velocity.clone();
-            newVel.add(gravityObj.accel.clone().scale(timeDiff / 2.0));
-            newVel.add(newAccelVector.clone().scale(timeDiff / 2.0));
-
-            gravityObj.velocity = newVel;
-        }
-
         function updatePositions() {
             const timeDiff = 1/60;
             for (let gravityObj of gravityObjects) {
-                updateGravityObjPosition(gravityObj, timeDiff);
+                gravityObj.updatePosition(timeDiff);
             }
             for (let planet of planets) {
-                planet.orbitPath.getPoint(planet.object.t, planet.object.position);
+                planet.orbitPath.getPoint(planet.t, planet.position);
             }
             for (let gravityObj of gravityObjects) {
-                updateGravityObjVelocity(gravityObj, timeDiff);
+                gravityObj.updateVelocity(timeDiff);
             }
         }
 
         function drawTrajectoryLine(gravityObj, iterations, lineColor=0xff0000) {
             lines = [];
-            let objCopy = {
-                position: gravityObj.position.clone(),
-                velocity: gravityObj.velocity.clone()
-            }
+            let objCopy = new GravityObject(
+                this,
+                gravityObj.position.clone(),
+                gravityObj.velocity.clone(),
+                0x0
+            );
 
             const updateInterval = 0.5;
             for (let i = 0; i < iterations; i++) {
                 const currentPos = objCopy.position.clone();
-                updateGravityObjPosition(objCopy, updateInterval);
-                updateGravityObjVelocity(objCopy, updateInterval);
+                objCopy.updatePosition(updateInterval);
+                objCopy.updateVelocity(updateInterval);
                 lines.push(new Phaser.Geom.Line(
                     currentPos.x, currentPos.y,
                     objCopy.position.x, objCopy.position.y
                 ));
             }
+            objCopy.destroy();
 
             graphics.lineStyle(1, lineColor, 0.8);
             for (let line of lines) {
                 graphics.strokeLineShape(line);
             }
         }
+        drawTrajectoryLine = drawTrajectoryLine.bind(this);
 
         updatePositions();
 
         graphics.clear();
 
         for (let planet of planets) {
-            graphics.fillStyle(planet.color, 1);
-            graphics.fillCircle(planet.object.position.x, planet.object.position.y, planet.object.radius);
+            planet.drawObject();
         }
 
         for (let obj of gravityObjects) {
             obj.drawObject();
         }
-        drawTrajectoryLine(gravityObjects[0], 1000);
+        //drawTrajectoryLine(gravityObjects[0], 1000);
 
         function drawPlayerShotTrajectory() {
             const mousePos = new Phaser.Math.Vector2(game.input.mousePointer.x, game.input.mousePointer.y);
-            let shotDirection = mousePos.clone().subtract(playerPlanet.object.position).normalize();
+            let shotDirection = mousePos.clone().subtract(playerPlanet.position).normalize();
+            let trajectoryTracer = new GravityObject(
+                    this,
+                    playerPlanet.position.clone().add(shotDirection.clone().scale(playerPlanet.radius)),
+                    shotDirection.clone().scale(50),
+                    0x0
+            );
             drawTrajectoryLine(
-                {
-                    position: playerPlanet.object.position.clone().add(shotDirection.clone().scale(playerPlanet.object.radius)),
-                    velocity: shotDirection.scale(50)
-                },
+                trajectoryTracer,
                 100,
-                0x0000ff);
+                0x0000ff
+            );
+            trajectoryTracer.destroy();
         }
+        drawPlayerShotTrajectory = drawPlayerShotTrajectory.bind(this);
 
         drawPlayerShotTrajectory();
     }
