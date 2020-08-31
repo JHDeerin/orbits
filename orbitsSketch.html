@@ -110,15 +110,19 @@
         constructor(scene, position, velocity, color) {
             this.position = position;
             this.velocity = velocity;
+            this.color = color;
+            this.prevPositionsQueue = [];
             this.accel = new Phaser.Math.Vector2();
 
-            graphics.clear();
-            graphics.fillStyle(color, 1);
+            let tempGraphics = scene.add.graphics();
+            tempGraphics.clear();
+            tempGraphics.fillStyle(color, 1);
             // TODO: Why does shifting this position affect the image??? Generate image from (0,0), maybe?
-            graphics.fillCircle(1, 1, 1);
+            tempGraphics.fillCircle(1, 1, 1);
 
             const spriteKey = `gravityObject${gravityObjects.length}`;
-            graphics.generateTexture(spriteKey, 2, 2);
+            tempGraphics.generateTexture(spriteKey, 2, 2);
+            tempGraphics.destroy();
 
             this.sprite = scene.add.image(this.position.x, this.position.y, spriteKey);
         }
@@ -126,6 +130,25 @@
         drawObject() {
             this.sprite.x = this.position.x;
             this.sprite.y = this.position.y;
+
+            // Cap length of trail
+            if (this.prevPositionsQueue.length > 10) {
+                this.prevPositionsQueue.shift();
+            }
+
+            // Draw trail behind it
+            for (let i = this.prevPositionsQueue.length - 1; i > 0; i--) {
+                const currentPos = this.prevPositionsQueue[i];
+                const nextPos = this.prevPositionsQueue[i-1];
+                graphics.lineStyle(
+                    1,
+                    this.color,
+                    0.8 * i/this.prevPositionsQueue.length);
+                graphics.strokeLineShape(new Phaser.Geom.Line(
+                    currentPos.x, currentPos.y,
+                    nextPos.x, nextPos.y
+                ));
+            }
         }
 
         getGravityAccelVector(objectPos) {
@@ -147,6 +170,7 @@
             newPos.add(accelVector.clone().scale(timeDiff**2 / 2.0));
 
             // Update position, save accel so we can update velocity later
+            this.prevPositionsQueue.push(this.position.clone());
             this.position = newPos;
             this.accel = accelVector;
         }
@@ -248,9 +272,11 @@
             }
             objCopy.destroy();
 
-            graphics.lineStyle(1, lineColor, 0.8);
+            let counter = 0;
             for (let line of lines) {
+                graphics.lineStyle(1, lineColor, 0.8 * (iterations-counter)/iterations);
                 graphics.strokeLineShape(line);
+                counter+=1;
             }
         }
         drawTrajectoryLine = drawTrajectoryLine.bind(this);
@@ -266,7 +292,6 @@
         for (let obj of gravityObjects) {
             obj.drawObject();
         }
-        //drawTrajectoryLine(gravityObjects[0], 1000);
 
         function drawPlayerShotTrajectory() {
             const mousePos = new Phaser.Math.Vector2(game.input.mousePointer.x, game.input.mousePointer.y);
@@ -280,13 +305,14 @@
             drawTrajectoryLine(
                 trajectoryTracer,
                 100,
-                0x0000ff
+                0xaaaaff
             );
             trajectoryTracer.destroy();
         }
         drawPlayerShotTrajectory = drawPlayerShotTrajectory.bind(this);
 
         drawPlayerShotTrajectory();
+        drawTrajectoryLine(gravityObjects[0], 1000);
     }
 
 </script>
