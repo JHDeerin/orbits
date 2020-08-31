@@ -22,7 +22,8 @@
         physics: {
             default: 'arcade',
             arcade: {
-                gravity: { y: 0 }
+                gravity: { y: 0 },
+                debug: true
             }
         },
         scene: {
@@ -36,21 +37,32 @@
     function preload() {
     }
 
-    let planets = [];
+    let planets;
     let gravityObjects = [];
     let playerPlanet;
 
     let graphics;
 
-    class Planet {
+    class Planet extends Phaser.GameObjects.Image {
         constructor(scene, distance, color, radius) {
+            // Create planet "image" from graphics
+            graphics.clear();
+            graphics.fillStyle(color, 1);
+            // TODO: Why does shifting this position affect the image??? Generate image from (0,0), maybe?
+            graphics.fillCircle(radius, radius, radius);
+
+            const spriteKey = `planet${planets.getLength()}`;
+            graphics.generateTexture(spriteKey, 2*radius, 2*radius);
+
+            let initialPosition = new Phaser.Math.Vector2();
+            super(scene, initialPosition.x, initialPosition.y, spriteKey);
+            scene.add.existing(this);
+
             this.t = 0;
-            this.position = new Phaser.Math.Vector2();
             this.radius = radius;
 
             this.orbitDistance = distance;
             this.mass = radius**2;
-            this.color = color;
 
             this.orbitPath = new Phaser.Curves.Path();
             this.orbitPath.add(new Phaser.Curves.Ellipse(
@@ -66,15 +78,8 @@
                 repeat: -1
             });
 
-            graphics.clear();
-            graphics.fillStyle(this.color, 1);
-            // TODO: Why does shifting this position affect the image??? Generate image from (0,0), maybe?
-            graphics.fillCircle(radius, radius, this.radius);
-
-            const spriteKey = `planet${planets.length}`;
-            graphics.generateTexture(spriteKey, 2*radius, 2*radius);
-
-            this.sprite = scene.add.image(this.position.x, this.position.y, spriteKey);
+            scene.physics.add.existing(this);
+            this.body.setCircle(radius);
         }
 
         calcOrbitDuration(distance) {
@@ -87,13 +92,16 @@
             return baseCircleTime * currentOrbitArea / baseCircleArea;
         }
 
-        drawObject() {
-            this.sprite.x = this.position.x;
-            this.sprite.y = this.position.y;
+        updatePosition() {
+            let newPosition = new Phaser.Math.Vector2();
+            this.orbitPath.getPoint(this.t, newPosition);
+            this.setPosition(newPosition.x, newPosition.y);
         }
 
+        drawObject() {}
+
         destroy() {
-            this.sprite.destroy();
+            this.physicsSprite.destroy();
         }
     }
 
@@ -122,8 +130,8 @@
 
         getGravityAccelVector(objectPos) {
             let accelVector = new Phaser.Math.Vector2();
-            for (let planet of planets) {
-                let toPlanet = planet.position.clone();
+            for (let planet of planets.getChildren()) {
+                let toPlanet = planet.body.center.clone();
                 toPlanet.subtract(objectPos);
                 toPlanet.scale(planet.mass / toPlanet.length()**2);
                 accelVector.add(toPlanet);
@@ -161,12 +169,14 @@
     function create() {
         graphics = this.add.graphics();
 
-        planets.push(new Planet(this, 1e-5, 0xffff00, 50));
-        planets.push(new Planet(this, 300, 0xff00ff, 5));
-        planets.push(new Planet(this, 200, 0xff00ff, 5));
+        planets = this.physics.add.group();
+
+        planets.add(new Planet(this, 1e-5, 0xffff00, 50));
+        planets.add(new Planet(this, 300, 0xff00ff, 5));
+        planets.add(new Planet(this, 200, 0xff00ff, 5));
         playerPlanet = new Planet(this, 400, 0xaaffaa, 5);
-        planets.push(playerPlanet);
-        planets.push(new Planet(this, 500, 0xff00ff, 15));
+        planets.add(playerPlanet);
+        planets.add(new Planet(this, 500, 0xff00ff, 15));
 
         gravityObjects.push(new GravityObject(
             this,
@@ -186,11 +196,11 @@
                 return;
             }
             const mousePos = new Phaser.Math.Vector2(pointer.x, pointer.y);
-            let shotDirection = mousePos.clone().subtract(playerPlanet.position).normalize();
+            let shotDirection = mousePos.clone().subtract(playerPlanet.body.center).normalize();
 
             gravityObjects.push(new GravityObject(
                 this,
-                playerPlanet.position.clone().add(shotDirection.clone().scale(playerPlanet.radius)),
+                playerPlanet.body.center.clone().add(shotDirection.clone().scale(playerPlanet.radius)),
                 shotDirection.scale(50),
                 0xaaffaa
             ));
@@ -209,8 +219,8 @@
             for (let gravityObj of gravityObjects) {
                 gravityObj.updatePosition(timeDiff);
             }
-            for (let planet of planets) {
-                planet.orbitPath.getPoint(planet.t, planet.position);
+            for (let planet of planets.getChildren()) {
+                planet.updatePosition();
             }
             for (let gravityObj of gravityObjects) {
                 gravityObj.updateVelocity(timeDiff);
@@ -249,7 +259,7 @@
 
         graphics.clear();
 
-        for (let planet of planets) {
+        for (let planet of planets.getChildren()) {
             planet.drawObject();
         }
 
@@ -260,10 +270,10 @@
 
         function drawPlayerShotTrajectory() {
             const mousePos = new Phaser.Math.Vector2(game.input.mousePointer.x, game.input.mousePointer.y);
-            let shotDirection = mousePos.clone().subtract(playerPlanet.position).normalize();
+            let shotDirection = mousePos.clone().subtract(playerPlanet.body.center).normalize();
             let trajectoryTracer = new GravityObject(
                     this,
-                    playerPlanet.position.clone().add(shotDirection.clone().scale(playerPlanet.radius)),
+                    playerPlanet.body.center.clone().add(shotDirection.clone().scale(playerPlanet.radius)),
                     shotDirection.clone().scale(50),
                     0x0
             );
