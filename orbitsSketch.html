@@ -106,16 +106,10 @@
     }
 
     // NOTE: Gravity objects are affected by gravity, but do NOT affect one another
-    class GravityObject {
+    class GravityObject extends Phaser.GameObjects.Image {
         constructor(scene, position, velocity, color) {
-            this.position = position;
-            this.velocity = velocity;
-            this.color = color;
-            this.prevPositionsQueue = [];
-            this.accel = new Phaser.Math.Vector2();
-
+            // Draw image via graphics
             let tempGraphics = scene.add.graphics();
-            tempGraphics.clear();
             tempGraphics.fillStyle(color, 1);
             // TODO: Why does shifting this position affect the image??? Generate image from (0,0), maybe?
             tempGraphics.fillCircle(1, 1, 1);
@@ -124,12 +118,19 @@
             tempGraphics.generateTexture(spriteKey, 2, 2);
             tempGraphics.destroy();
 
-            this.sprite = scene.add.image(this.position.x, this.position.y, spriteKey);
+            super(scene, position.x, position.y, spriteKey);
+            scene.add.existing(this);
+
+            this.position = position;
+            this.velocity = velocity;
+            this.color = color;
+            this.prevPositionsQueue = [];
+            this.accel = new Phaser.Math.Vector2();
         }
 
         drawObject() {
-            this.sprite.x = this.position.x;
-            this.sprite.y = this.position.y;
+            this.x = this.position.x;
+            this.y = this.position.y;
 
             // Cap length of trail
             if (this.prevPositionsQueue.length > 10) {
@@ -182,10 +183,6 @@
             newVel.add(newAccelVector.clone().scale(timeDiff / 2.0));
 
             this.velocity = newVel;
-        }
-
-        destroy() {
-            this.sprite.destroy();
         }
     }
 
