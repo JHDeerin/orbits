@@ -38,7 +38,7 @@
     }
 
     let planets;
-    let gravityObjects = [];
+    let gravityObjects;
     let playerPlanet;
 
     let graphics;
@@ -80,6 +80,7 @@
 
             scene.physics.add.existing(this);
             this.body.setCircle(radius);
+            this.body.setImmovable(true);   // Will only move by explicit update
         }
 
         calcOrbitDuration(distance) {
@@ -95,7 +96,7 @@
         updatePosition() {
             let newPosition = new Phaser.Math.Vector2();
             this.orbitPath.getPoint(this.t, newPosition);
-            this.setPosition(newPosition.x, newPosition.y);
+            this.body.reset(newPosition.x, newPosition.y);
         }
 
         drawObject() {}
@@ -108,30 +109,33 @@
     // NOTE: Gravity objects are affected by gravity, but do NOT affect one another
     class GravityObject extends Phaser.GameObjects.Image {
         constructor(scene, position, velocity, color) {
+            const radius = 1;
             // Draw image via graphics
             let tempGraphics = scene.add.graphics();
-            tempGraphics.fillStyle(color, 1);
+            tempGraphics.fillStyle(color, radius);
             // TODO: Why does shifting this position affect the image??? Generate image from (0,0), maybe?
-            tempGraphics.fillCircle(1, 1, 1);
+            tempGraphics.fillCircle(radius, radius, radius);
 
-            const spriteKey = `gravityObject${gravityObjects.length}`;
-            tempGraphics.generateTexture(spriteKey, 2, 2);
+            const spriteKey = `gravityObject${gravityObjects.getLength()}`;
+            tempGraphics.generateTexture(spriteKey, 2*radius, 2*radius);
             tempGraphics.destroy();
 
             super(scene, position.x, position.y, spriteKey);
             scene.add.existing(this);
 
-            this.position = position;
-            this.velocity = velocity;
+            scene.physics.add.existing(this);
+            this.body.setCircle(radius);
+            this.body.setImmovable(true);   // Will only move by explicit update
+
+            // Body velocity only used to actually move object each frame
+            this.position = position.clone();
+            this.velocity = velocity.clone();
             this.color = color;
             this.prevPositionsQueue = [];
             this.accel = new Phaser.Math.Vector2();
         }
 
         drawObject() {
-            this.x = this.position.x;
-            this.y = this.position.y;
-
             // Cap length of trail
             if (this.prevPositionsQueue.length > 10) {
                 this.prevPositionsQueue.shift();
@@ -171,9 +175,11 @@
             newPos.add(accelVector.clone().scale(timeDiff**2 / 2.0));
 
             // Update position, save accel so we can update velocity later
-            this.prevPositionsQueue.push(this.position.clone());
+            this.prevPositionsQueue.push(this.body.center.clone());
             this.position = newPos;
             this.accel = accelVector;
+
+            this.body.reset(this.position.x, this.position.y);
         }
 
         updateVelocity(timeDiff) {
@@ -191,6 +197,7 @@
         graphics = this.add.graphics();
 
         planets = this.physics.add.group();
+        gravityObjects = this.physics.add.group();
 
         planets.add(new Planet(this, 1e-5, 0xffff00, 50));
         planets.add(new Planet(this, 300, 0xff00ff, 5));
@@ -199,13 +206,13 @@
         planets.add(playerPlanet);
         planets.add(new Planet(this, 500, 0xff00ff, 15));
 
-        gravityObjects.push(new GravityObject(
+        gravityObjects.add(new GravityObject(
             this,
             new Phaser.Math.Vector2(this.cameras.main.centerX, 200),
             new Phaser.Math.Vector2(50, 0),
             0xffaaaa
         ));
-        gravityObjects.push(new GravityObject(
+        gravityObjects.add(new GravityObject(
             this,
             new Phaser.Math.Vector2(this.cameras.main.centerX + 502, this.cameras.main.centerY),
             new Phaser.Math.Vector2(0, 2),
@@ -219,7 +226,7 @@
             const mousePos = new Phaser.Math.Vector2(pointer.x, pointer.y);
             let shotDirection = mousePos.clone().subtract(playerPlanet.body.center).normalize();
 
-            gravityObjects.push(new GravityObject(
+            gravityObjects.add(new GravityObject(
                 this,
                 playerPlanet.body.center.clone().add(shotDirection.clone().scale(playerPlanet.radius)),
                 shotDirection.scale(50),
@@ -237,23 +244,24 @@
     function update() {
         function updatePositions() {
             const timeDiff = 1/60;
-            for (let gravityObj of gravityObjects) {
+            for (let gravityObj of gravityObjects.getChildren()) {
                 gravityObj.updatePosition(timeDiff);
             }
             for (let planet of planets.getChildren()) {
                 planet.updatePosition();
             }
-            for (let gravityObj of gravityObjects) {
+            for (let gravityObj of gravityObjects.getChildren()) {
                 gravityObj.updateVelocity(timeDiff);
             }
         }
 
         function drawTrajectoryLine(gravityObj, iterations, lineColor=0xff0000) {
             lines = [];
+            // NOTE: GravityObjects ONLY used to draw trajectory; should not collide w/ anything
             let objCopy = new GravityObject(
                 this,
-                gravityObj.position.clone(),
-                gravityObj.velocity.clone(),
+                gravityObj.position,
+                gravityObj.velocity,
                 0x0
             );
 
@@ -286,7 +294,7 @@
             planet.drawObject();
         }
 
-        for (let obj of gravityObjects) {
+        for (let obj of gravityObjects.getChildren()) {
             obj.drawObject();
         }
 
@@ -296,7 +304,7 @@
             let trajectoryTracer = new GravityObject(
                     this,
                     playerPlanet.body.center.clone().add(shotDirection.clone().scale(playerPlanet.radius)),
-                    shotDirection.clone().scale(50),
+                    shotDirection.scale(50),
                     0x0
             );
             drawTrajectoryLine(
@@ -309,7 +317,7 @@
         drawPlayerShotTrajectory = drawPlayerShotTrajectory.bind(this);
 
         drawPlayerShotTrajectory();
-        drawTrajectoryLine(gravityObjects[0], 1000);
+        drawTrajectoryLine(gravityObjects.getChildren()[0], 1000);
     }
 
 </script>
