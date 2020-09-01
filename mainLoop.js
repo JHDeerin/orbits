@@ -1,4 +1,5 @@
-import {Planet, GravityObject} from './classes.js'
+import {GravityObject, Planet} from './classes.js'
+import {drawTrajectoryLine, generatePlanets} from './utils.js'
 
 const config = {
     type: Phaser.AUTO,
@@ -28,18 +29,37 @@ let playerPlanet;
 
 let graphics;
 
+/**
+ * Returns a gravity object that would be fired by the player shooting, based
+ * on their mouse position
+ */
+function getShotGravityObject(scene, shotOriginPlanet, speed=50) {
+    if (!shotOriginPlanet || !shotOriginPlanet.body) {
+        return;
+    }
+    const mousePos = new Phaser.Math.Vector2(scene.input.x, scene.input.y);
+    let shotDirection = mousePos.clone().subtract(shotOriginPlanet.body.center).normalize();
+
+    return new GravityObject(
+        scene,
+        shotOriginPlanet.body.center.clone().add(
+            shotDirection.clone().scale(shotOriginPlanet.radius + 2)),
+        shotDirection.scale(speed),
+        shotOriginPlanet.color
+    );
+}
+
 function create() {
     graphics = this.add.graphics();
 
     planets = this.physics.add.group();
     gravityObjects = this.physics.add.group();
 
-    planets.add(new Planet(this, 1e-5, 0xffff00, 50));
-    planets.add(new Planet(this, 300, 0xff00ff, 5));
-    planets.add(new Planet(this, 200, 0xff00ff, 5));
-    playerPlanet = new Planet(this, 400, 0xaaffaa, 5);
-    planets.add(playerPlanet);
-    planets.add(new Planet(this, 500, 0xff00ff, 15));
+    const newPlanets = generatePlanets(this);
+    for (let planet of newPlanets) {
+        planets.add(planet);
+    }
+    playerPlanet = newPlanets[Math.floor(Math.random() * newPlanets.length)];
 
     gravityObjects.add(new GravityObject(
         this,
@@ -50,7 +70,14 @@ function create() {
 
     this.physics.add.collider(planets, gravityObjects,
         (planet, gravityObject) => {
+            // TODO: Is this the most appropriate place for the collide handler?
             gravityObject.onCollision(planet);
+            gravityObjects.remove(gravityObject);
+            gravityObject.destroy();
+            if (planet.mass <= 0) {
+                planets.remove(planet);
+                planet.destroy();
+            }
         }
     );
 
@@ -58,23 +85,14 @@ function create() {
         if (!pointer.leftButtonDown()) {
             return;
         }
-        if (!playerPlanet) {
+        if (!playerPlanet || !playerPlanet.body) {
             return;
         }
 
-        const mousePos = new Phaser.Math.Vector2(pointer.x, pointer.y);
-        let shotDirection = mousePos.clone().subtract(playerPlanet.body.center).normalize();
-
-        gravityObjects.add(new GravityObject(
-            this,
-            playerPlanet.body.center.clone().add(shotDirection.clone().scale(playerPlanet.radius + 2)),
-            shotDirection.scale(50),
-            0xaaffaa
-        ));
+        gravityObjects.add(getShotGravityObject(this, playerPlanet));
     }
-
     this.input.on('pointerdown', fireNewProjectile, this);
-    this.input.mouse.disableContextMenu();
+    this.input.mouse.disableContextMenu();  // Disables menu on right-click
 
     console.log(planets);
     console.log(gravityObjects);
@@ -83,106 +101,53 @@ function create() {
 function update() {
     function updatePositions() {
         const timeDiff = 1/60;
+        // NOTE: GravityObjects are affected by planet gravity, but do NOT affect one another
         for (let gravityObj of gravityObjects.getChildren()) {
-            gravityObj.updatePosition(timeDiff);
+            gravityObj.updatePosition(planets.getChildren(), timeDiff);
         }
         for (let planet of planets.getChildren()) {
             planet.updatePosition();
         }
         for (let gravityObj of gravityObjects.getChildren()) {
-            gravityObj.updateVelocity(timeDiff);
+            gravityObj.updateVelocity(planets.getChildren(), timeDiff);
         }
     }
 
-    function drawTrajectoryLine(gravityObj, iterations, updateInterval=0.5, lineColor=0xff0000, isStoppedByPlanets=false, ) {
-        let lines = [];
-        // NOTE: GravityObjects ONLY used to draw trajectory; should not collide w/ anything
-        if (!gravityObj) {
-            return;
-        }
-        let objCopy = new GravityObject(
-            this,
-            gravityObj.position,
-            gravityObj.velocity,
-            0x0,
-            0
-        );
+    function updateScreen() {
+        graphics.clear();
+        GravityObject.tailGraphics.clear();
 
-        // TODO: How to do this natively via Phaser?
-        function isInsidePlanet(gravityObj) {
-            if (!isStoppedByPlanets) {
-                return false;
-            }
-
-            for (let planet of planets.getChildren()) {
-                if (gravityObj.body.center.distance(planet.body.center) < (planet.radius + gravityObj.radius)) {
-                    return true;
-                }
-            }
-            return false;
+        for (let obj of gravityObjects.getChildren()) {
+            obj.drawObject();
         }
 
-        for (let i = 0; i < iterations; i++) {
-            const currentPos = objCopy.position.clone();
-            objCopy.updatePosition(updateInterval);
-            objCopy.updateVelocity(updateInterval);
-            lines.push(new Phaser.Geom.Line(
-                currentPos.x, currentPos.y,
-                objCopy.position.x, objCopy.position.y
-            ));
-
-            if (isInsidePlanet(objCopy)) {
-                break;
-            }
-        }
-        objCopy.destroy();
-
-        for (let i = 0; i < lines.length; i++) {
-            graphics.lineStyle(1, lineColor, 0.8 * (iterations-i)/iterations);
-            graphics.strokeLineShape(lines[i]);
-        }
+        drawPlayerShotTrajectory();
+        drawTrajectoryLine(this, graphics, gravityObjects.getChildren()[0], planets.getChildren(), 1000);
     }
-    drawTrajectoryLine = drawTrajectoryLine.bind(this);
-
-    updatePositions();
-
-    graphics.clear();
-
-    for (let planet of planets.getChildren()) {
-        planet.drawObject();
-    }
-
-    for (let obj of gravityObjects.getChildren()) {
-        obj.drawObject();
-    }
+    updateScreen = updateScreen.bind(this); // Binding needed to reference Phaser scene
 
     function drawPlayerShotTrajectory() {
         if (!playerPlanet) {
             return;
         }
 
-        const mousePos = new Phaser.Math.Vector2(game.input.mousePointer.x, game.input.mousePointer.y);
-        let shotDirection = mousePos.clone().subtract(playerPlanet.body.center).normalize();
-        let trajectoryTracer = new GravityObject(
-                this,
-                playerPlanet.body.center.clone().add(shotDirection.clone().scale(playerPlanet.radius + 2)),
-                shotDirection.scale(50),
-                0x0,
-                0
-        );
+        let trajectoryTracer = getShotGravityObject(this, playerPlanet, 50);
         drawTrajectoryLine(
+            this,
+            graphics,
             trajectoryTracer,
+            planets.getChildren(),
             500,
             0.1,
             0xaaaaff,
             true
         );
-        trajectoryTracer.destroy();
+        if (trajectoryTracer) {
+            trajectoryTracer.destroy();
+        }
     }
-    drawPlayerShotTrajectory = drawPlayerShotTrajectory.bind(this);
+    drawPlayerShotTrajectory = drawPlayerShotTrajectory.bind(this); // Binding needed to reference Phaser scene
 
-    drawPlayerShotTrajectory();
-    drawTrajectoryLine(gravityObjects.getChildren()[0], 1000);
+    updatePositions();
+    updateScreen();
 }
-
-export {graphics, planets, gravityObjects, playerPlanet};

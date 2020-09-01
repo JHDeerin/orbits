@@ -1,15 +1,26 @@
-import {graphics, planets, gravityObjects, playerPlanet} from './mainLoop.js'
+import {getUniqueID} from './utils.js'
 
-export class Planet extends Phaser.GameObjects.Image {
-    constructor(scene, distance, color, radius) {
+class Planet extends Phaser.GameObjects.Image {
+    /**
+     * A circular planet that has a gravitational field and orbits around the "sun" on a fixed path
+     *
+     * @param {*} scene The Phaser scene the planet should be in
+     * @param {*} distance The distance from the sun (i.e. center of screen) the planet should be; the farther away it is, the slower its orbit
+     * @param {Number} color The hexadecimal color the planet should be
+     * @param {*} radius The radius of the planet (in pixels); larger planets have more mass (i.e a greater gravitational effect)
+     * @param {*} startingAngle The angle of rotation for the planet to start at on its orbit, from 0 to 360 (0 = 3 o'clock, rotates clockwise)
+     */
+    constructor(scene, distance, color, radius, startingAngle=0) {
         // Create planet "image" from graphics
-        graphics.clear();
-        graphics.fillStyle(color, 1);
+        let tempGraphics = scene.add.graphics();
+        tempGraphics.clear();
+        tempGraphics.fillStyle(color, 1);
         // TODO: Why does shifting this position affect the image??? Generate image from (0,0), maybe?
-        graphics.fillCircle(radius, radius, radius);
+        tempGraphics.fillCircle(radius, radius, radius);
 
-        const spriteKey = `planet${planets.getLength()}`;
-        graphics.generateTexture(spriteKey, 2*radius, 2*radius);
+        const spriteKey = `planet${getUniqueID()}`;
+        tempGraphics.generateTexture(spriteKey, 2*radius, 2*radius);
+        tempGraphics.destroy();
 
         let initialPosition = new Phaser.Math.Vector2();
         super(scene, initialPosition.x, initialPosition.y, spriteKey);
@@ -17,6 +28,7 @@ export class Planet extends Phaser.GameObjects.Image {
 
         this.t = 0;
         this.radius = radius;
+        this.color = color;
 
         this.orbitDistance = distance;
         this.mass = radius**2;
@@ -26,7 +38,7 @@ export class Planet extends Phaser.GameObjects.Image {
             scene.cameras.main.centerX,
             scene.cameras.main.centerY,
             distance
-        ));
+        ).setRotation(startingAngle));
 
         scene.tweens.add({
             targets: this,
@@ -55,12 +67,18 @@ export class Planet extends Phaser.GameObjects.Image {
         this.orbitPath.getPoint(this.t, newPosition);
         this.body.reset(newPosition.x, newPosition.y);
     }
-
-    drawObject() {}
 }
 
-// NOTE: Gravity objects are affected by gravity, but do NOT affect one another
-export class GravityObject extends Phaser.GameObjects.Image {
+class GravityObject extends Phaser.GameObjects.Image {
+    /**
+     * An object whose motion is affected by gravity in the scene
+     *
+     * @param {*} scene The Phaser scene the GravityObject should be in
+     * @param {Phaser.Math.Vector2} position The starting position of the GravityObject
+     * @param {Phaser.Math.Vector2} velocity
+     * @param {Number} color The hexadecimal color the object should be
+     * @param {*} damage How much damage the object inflicts when it hits something
+     */
     constructor(scene, position, velocity, color, damage=10) {
         const radius = 1;
         // Draw image via graphics
@@ -69,7 +87,7 @@ export class GravityObject extends Phaser.GameObjects.Image {
         // TODO: Why does shifting this position affect the image??? Generate image from (0,0), maybe?
         tempGraphics.fillCircle(radius, radius, radius);
 
-        const spriteKey = `gravityObject${gravityObjects.getLength()}`;
+        const spriteKey = `gravityObject${getUniqueID()}`;
         tempGraphics.generateTexture(spriteKey, 2*radius, 2*radius);
         tempGraphics.destroy();
 
@@ -83,11 +101,17 @@ export class GravityObject extends Phaser.GameObjects.Image {
         // Body velocity only used to actually move object each frame
         this.position = position.clone();
         this.velocity = velocity.clone();
+        this.accel = new Phaser.Math.Vector2();
+
         this.color = color;
         this.prevPositionsQueue = [];
-        this.accel = new Phaser.Math.Vector2();
         this.radius = radius;
         this.damage = damage;
+
+        // TODO: Avoid this singleton?
+        if (!GravityObject.tailGraphics) {
+            GravityObject.tailGraphics = scene.add.graphics();
+        }
     }
 
     drawObject() {
@@ -96,35 +120,35 @@ export class GravityObject extends Phaser.GameObjects.Image {
             this.prevPositionsQueue.shift();
         }
 
-        // Draw trail behind it
+        // Draw trail behind it (TODO: Find more efficient way of doing this?)
         for (let i = this.prevPositionsQueue.length - 1; i > 0; i--) {
             const currentPos = this.prevPositionsQueue[i];
             const nextPos = this.prevPositionsQueue[i-1];
-            graphics.lineStyle(
+            GravityObject.tailGraphics.lineStyle(
                 1,
                 this.color,
                 0.8 * i/this.prevPositionsQueue.length);
-            graphics.strokeLineShape(new Phaser.Geom.Line(
+            GravityObject.tailGraphics.strokeLineShape(new Phaser.Geom.Line(
                 currentPos.x, currentPos.y,
                 nextPos.x, nextPos.y
             ));
         }
     }
 
-    getGravityAccelVector(objectPos) {
+    getGravityAccelVector(heavyObjects, objectPos) {
         let accelVector = new Phaser.Math.Vector2();
-        for (let planet of planets.getChildren()) {
-            let toPlanet = planet.body.center.clone();
-            toPlanet.subtract(objectPos);
-            toPlanet.scale(planet.mass / toPlanet.length()**2);
-            accelVector.add(toPlanet);
+        for (let heavyObject of heavyObjects) {
+            let toHeavy = heavyObject.body.center.clone();
+            toHeavy.subtract(objectPos);
+            toHeavy.scale(heavyObject.mass / toHeavy.length()**2);
+            accelVector.add(toHeavy);
         }
         return accelVector;
     }
 
-    updatePosition(timeDiff) {
+    updatePosition(heavyObjects, timeDiff) {
         // Update position via Verlet integration
-        let accelVector = this.getGravityAccelVector(this.position);
+        let accelVector = this.getGravityAccelVector(heavyObjects, this.position);
         let newPos = this.position.clone();
         newPos.add(this.velocity.clone().scale(timeDiff));
         newPos.add(accelVector.clone().scale(timeDiff**2 / 2.0));
@@ -137,8 +161,9 @@ export class GravityObject extends Phaser.GameObjects.Image {
         this.body.reset(this.position.x, this.position.y);
     }
 
-    updateVelocity(timeDiff) {
-        let newAccelVector = this.getGravityAccelVector(this.position);
+    updateVelocity(heavyObjects, timeDiff) {
+        // Update velocity via Verlet integration (must be called AFTER all heavyObjects in the scene have finished moving)
+        let newAccelVector = this.getGravityAccelVector(heavyObjects, this.position);
         let newVel = this.velocity.clone();
         newVel.add(this.accel.clone().scale(timeDiff / 2.0));
         newVel.add(newAccelVector.clone().scale(timeDiff / 2.0));
@@ -149,10 +174,10 @@ export class GravityObject extends Phaser.GameObjects.Image {
     onCollision(planet) {
         console.log("COLLISION!!!");
         planet.mass -= this.damage;
-        if (planet.mass <= 0) {
-            planet.destroy();
-        }
-        gravityObjects.remove(this);
-        this.destroy();
     }
+}
+
+export {
+    GravityObject,
+    Planet
 }
