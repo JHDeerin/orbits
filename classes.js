@@ -1,6 +1,6 @@
 import Phaser from './mainLoop.js'
 
-class Planet extends Phaser.GameObjects.Image {
+export class Planet extends Phaser.GameObjects.Image {
     constructor(scene, distance, color, radius) {
         // Create planet "image" from graphics
         graphics.clear();
@@ -60,7 +60,7 @@ class Planet extends Phaser.GameObjects.Image {
 }
 
 // NOTE: Gravity objects are affected by gravity, but do NOT affect one another
-class GravityObject extends Phaser.GameObjects.Image {
+export class GravityObject extends Phaser.GameObjects.Image {
     constructor(scene, position, velocity, color, damage=10) {
         const radius = 1;
         // Draw image via graphics
@@ -156,8 +156,3 @@ class GravityObject extends Phaser.GameObjects.Image {
         this.destroy();
     }
 }
-
-export {
-    Planet as default,
-    GravityObject as default
-};

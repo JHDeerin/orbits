@@ -1,5 +1,5 @@
-import Planet from './classes.js'
-import GravityObject from './classes.js'
+import {Planet} from './classes.js'
+import {GravityObject} from './classes.js'
 
 const config = {
     type: Phaser.AUTO,
