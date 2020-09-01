@@ -1,0 +1,16 @@
+{
+  "name": "orbits",
+  "version": "0.0.0",
+  "main": "mainLoop.js",
+  "dependencies": {
+    "phaser": "^3.24.1"
+  },
+  "devDependencies": {
+    "browserify": "^16.5.2",
+    "watchify": "^3.11.1"
+  },
+  "scripts": {
+    "build": "browserify mainLoop.js -o bundle.js",
+    "watch": "watchify mainLoop.js -v -o bundle.js"
+  }
+}
