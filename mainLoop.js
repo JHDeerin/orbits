@@ -1,5 +1,4 @@
-import {Planet} from './classes.js'
-import {GravityObject} from './classes.js'
+import {Planet, GravityObject} from './classes.js'
 
 const config = {
     type: Phaser.AUTO,
@@ -21,8 +20,7 @@ const config = {
 
 const game = new Phaser.Game(config);
 
-function preload() {
-}
+function preload() {}
 
 let planets;
 let gravityObjects;
@@ -97,7 +95,7 @@ function update() {
     }
 
     function drawTrajectoryLine(gravityObj, iterations, updateInterval=0.5, lineColor=0xff0000, isStoppedByPlanets=false, ) {
-        lines = [];
+        let lines = [];
         // NOTE: GravityObjects ONLY used to draw trajectory; should not collide w/ anything
         if (!gravityObj) {
             return;
@@ -187,4 +185,4 @@ function update() {
     drawTrajectoryLine(gravityObjects.getChildren()[0], 1000);
 }
 
-export default Phaser;
+export {graphics, planets, gravityObjects, playerPlanet};

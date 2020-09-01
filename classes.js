@@ -1,4 +1,4 @@
-import Phaser from './mainLoop.js'
+import {graphics, planets, gravityObjects, playerPlanet} from './mainLoop.js'
 
 export class Planet extends Phaser.GameObjects.Image {
     constructor(scene, distance, color, radius) {
