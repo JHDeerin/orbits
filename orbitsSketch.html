@@ -100,15 +100,11 @@
         }
 
         drawObject() {}
-
-        destroy() {
-            this.physicsSprite.destroy();
-        }
     }
 
     // NOTE: Gravity objects are affected by gravity, but do NOT affect one another
     class GravityObject extends Phaser.GameObjects.Image {
-        constructor(scene, position, velocity, color) {
+        constructor(scene, position, velocity, color, damage=10) {
             const radius = 1;
             // Draw image via graphics
             let tempGraphics = scene.add.graphics();
@@ -133,6 +129,7 @@
             this.color = color;
             this.prevPositionsQueue = [];
             this.accel = new Phaser.Math.Vector2();
+            this.damage = damage;
         }
 
         drawObject() {
@@ -219,16 +216,30 @@
             0xaaaaff
         ));
 
+        this.physics.add.collider(planets, gravityObjects,
+            (planet, gravityObject) => {
+                planet.mass -= gravityObject.damage;
+                if (planet.mass <= 0) {
+                    planet.destroy();
+                }
+                gravityObject.destroy();
+            }
+        );
+
         function fireNewProjectile(pointer) {
             if (!pointer.leftButtonDown()) {
                 return;
             }
+            if (!playerPlanet) {
+                return;
+            }
+
             const mousePos = new Phaser.Math.Vector2(pointer.x, pointer.y);
             let shotDirection = mousePos.clone().subtract(playerPlanet.body.center).normalize();
 
             gravityObjects.add(new GravityObject(
                 this,
-                playerPlanet.body.center.clone().add(shotDirection.clone().scale(playerPlanet.radius)),
+                playerPlanet.body.center.clone().add(shotDirection.clone().scale(playerPlanet.radius+2)),
                 shotDirection.scale(50),
                 0xaaffaa
             ));
@@ -258,6 +269,9 @@
         function drawTrajectoryLine(gravityObj, iterations, lineColor=0xff0000) {
             lines = [];
             // NOTE: GravityObjects ONLY used to draw trajectory; should not collide w/ anything
+            if (!gravityObj) {
+                return;
+            }
             let objCopy = new GravityObject(
                 this,
                 gravityObj.position,
@@ -266,7 +280,7 @@
             );
 
             const updateInterval = 0.5;
-            for (let i = 0; i < iterations; i++) {
+            for (let i = 0; i < iterations && objCopy; i++) {
                 const currentPos = objCopy.position.clone();
                 objCopy.updatePosition(updateInterval);
                 objCopy.updateVelocity(updateInterval);
@@ -299,6 +313,10 @@
         }
 
         function drawPlayerShotTrajectory() {
+            if (!playerPlanet) {
+                return;
+            }
+
             const mousePos = new Phaser.Math.Vector2(game.input.mousePointer.x, game.input.mousePointer.y);
             let shotDirection = mousePos.clone().subtract(playerPlanet.body.center).normalize();
             let trajectoryTracer = new GravityObject(
