@@ -129,6 +129,7 @@
             this.color = color;
             this.prevPositionsQueue = [];
             this.accel = new Phaser.Math.Vector2();
+            this.radius = radius;
             this.damage = damage;
         }
 
@@ -187,8 +188,17 @@
 
             this.velocity = newVel;
         }
-    }
 
+        onCollision(planet) {
+            console.log("COLLISION!!!");
+            planet.mass -= this.damage;
+            if (planet.mass <= 0) {
+                planet.destroy();
+            }
+            gravityObjects.remove(this);
+            this.destroy();
+        }
+    }
 
     function create() {
         graphics = this.add.graphics();
@@ -209,20 +219,10 @@
             new Phaser.Math.Vector2(50, 0),
             0xffaaaa
         ));
-        gravityObjects.add(new GravityObject(
-            this,
-            new Phaser.Math.Vector2(this.cameras.main.centerX + 502, this.cameras.main.centerY),
-            new Phaser.Math.Vector2(0, 2),
-            0xaaaaff
-        ));
 
         this.physics.add.collider(planets, gravityObjects,
             (planet, gravityObject) => {
-                planet.mass -= gravityObject.damage;
-                if (planet.mass <= 0) {
-                    planet.destroy();
-                }
-                gravityObject.destroy();
+                gravityObject.onCollision(planet);
             }
         );
 
@@ -239,7 +239,7 @@
 
             gravityObjects.add(new GravityObject(
                 this,
-                playerPlanet.body.center.clone().add(shotDirection.clone().scale(playerPlanet.radius+2)),
+                playerPlanet.body.center.clone().add(shotDirection.clone().scale(playerPlanet.radius + 2)),
                 shotDirection.scale(50),
                 0xaaffaa
             ));
@@ -266,7 +266,7 @@
             }
         }
 
-        function drawTrajectoryLine(gravityObj, iterations, lineColor=0xff0000) {
+        function drawTrajectoryLine(gravityObj, iterations, updateInterval=0.5, lineColor=0xff0000, isStoppedByPlanets=false, ) {
             lines = [];
             // NOTE: GravityObjects ONLY used to draw trajectory; should not collide w/ anything
             if (!gravityObj) {
@@ -276,11 +276,25 @@
                 this,
                 gravityObj.position,
                 gravityObj.velocity,
-                0x0
+                0x0,
+                0
             );
 
-            const updateInterval = 0.5;
-            for (let i = 0; i < iterations && objCopy; i++) {
+            // TODO: How to do this natively via Phaser?
+            function isInsidePlanet(gravityObj) {
+                if (!isStoppedByPlanets) {
+                    return false;
+                }
+
+                for (let planet of planets.getChildren()) {
+                    if (gravityObj.body.center.distance(planet.body.center) < (planet.radius + gravityObj.radius)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            for (let i = 0; i < iterations; i++) {
                 const currentPos = objCopy.position.clone();
                 objCopy.updatePosition(updateInterval);
                 objCopy.updateVelocity(updateInterval);
@@ -288,14 +302,16 @@
                     currentPos.x, currentPos.y,
                     objCopy.position.x, objCopy.position.y
                 ));
+
+                if (isInsidePlanet(objCopy)) {
+                    break;
+                }
             }
             objCopy.destroy();
 
-            let counter = 0;
-            for (let line of lines) {
-                graphics.lineStyle(1, lineColor, 0.8 * (iterations-counter)/iterations);
-                graphics.strokeLineShape(line);
-                counter+=1;
+            for (let i = 0; i < lines.length; i++) {
+                graphics.lineStyle(1, lineColor, 0.8 * (iterations-i)/iterations);
+                graphics.strokeLineShape(lines[i]);
             }
         }
         drawTrajectoryLine = drawTrajectoryLine.bind(this);
@@ -321,14 +337,17 @@
             let shotDirection = mousePos.clone().subtract(playerPlanet.body.center).normalize();
             let trajectoryTracer = new GravityObject(
                     this,
-                    playerPlanet.body.center.clone().add(shotDirection.clone().scale(playerPlanet.radius)),
+                    playerPlanet.body.center.clone().add(shotDirection.clone().scale(playerPlanet.radius + 2)),
                     shotDirection.scale(50),
-                    0x0
+                    0x0,
+                    0
             );
             drawTrajectoryLine(
                 trajectoryTracer,
-                100,
-                0xaaaaff
+                500,
+                0.1,
+                0xaaaaff,
+                true
             );
             trajectoryTracer.destroy();
         }
