@@ -5,12 +5,13 @@ class Planet extends Phaser.GameObjects.Image {
      * A circular planet that has a gravitational field and orbits around the "sun" on a fixed path
      *
      * @param {*} scene The Phaser scene the planet should be in
-     * @param {*} distance The distance from the sun (i.e. center of screen) the planet should be; the farther away it is, the slower its orbit
+     * @param {*} distance The distance from the orbit center the planet should be; the farther away it is, the slower its orbit
      * @param {Number} color The hexadecimal color the planet should be
      * @param {*} radius The radius of the planet (in pixels); larger planets have more mass (i.e a greater gravitational effect)
      * @param {*} startingAngle The angle of rotation for the planet to start at on its orbit, from 0 to 360 (0 = 3 o'clock, rotates clockwise)
+     * @param {*} centerPos The position the planet should orbit around (defaults to the center of the screen, i.e. the sun)
      */
-    constructor(scene, distance, color, radius, startingAngle=0) {
+    constructor(scene, distance, color, radius, startingAngle=0, centerPos=new Phaser.Math.Vector2(scene.cameras.main.centerX, scene.cameras.main.centerY)) {
         // Create planet "image" from graphics
         let tempGraphics = scene.add.graphics();
         tempGraphics.clear();
@@ -22,8 +23,7 @@ class Planet extends Phaser.GameObjects.Image {
         tempGraphics.generateTexture(spriteKey, 2*radius, 2*radius);
         tempGraphics.destroy();
 
-        let initialPosition = new Phaser.Math.Vector2();
-        super(scene, initialPosition.x, initialPosition.y, spriteKey);
+        super(scene, centerPos.x, centerPos.y, spriteKey);
         scene.add.existing(this);
 
         this.t = 0;
@@ -39,6 +39,8 @@ class Planet extends Phaser.GameObjects.Image {
             scene.cameras.main.centerY,
             distance
         ).setRotation(startingAngle));
+        this.screenCenter = new Phaser.Math.Vector2(scene.cameras.main.centerX, scene.cameras.main.centerY);
+        this.orbitCenter = centerPos;
 
         scene.tweens.add({
             targets: this,
@@ -63,8 +65,13 @@ class Planet extends Phaser.GameObjects.Image {
     }
 
     updatePosition() {
+        if (!this.orbitCenter) {
+            // TODO: Make this fly off properly, instead of just awkwardly freezing
+            return;
+        }
         let newPosition = new Phaser.Math.Vector2();
         this.orbitPath.getPoint(this.t, newPosition);
+        newPosition.add(this.orbitCenter).subtract(this.screenCenter);
         this.body.reset(newPosition.x, newPosition.y);
     }
 }

@@ -1,5 +1,5 @@
 import {GravityObject, Planet} from './classes.js'
-import {drawTrajectoryLine, generatePlanets} from './utils.js'
+import {drawTrajectoryLine, getRandomItem, generatePlanets} from './utils.js'
 
 const config = {
     type: Phaser.AUTO,
@@ -59,7 +59,7 @@ function create() {
     for (let planet of newPlanets) {
         planets.add(planet);
     }
-    playerPlanet = newPlanets[Math.floor(Math.random() * newPlanets.length)];
+    playerPlanet = getRandomItem(newPlanets);
 
     gravityObjects.add(new GravityObject(
         this,
