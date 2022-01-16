@@ -1,4 +1,5 @@
-import {getUniqueID} from './utils.js'
+const Phaser = require('phaser')
+const {getUniqueID} = require('./utils')
 
 class Planet extends Phaser.GameObjects.Image {
     /**
@@ -184,7 +185,5 @@ class GravityObject extends Phaser.GameObjects.Image {
     }
 }
 
-export {
-    GravityObject,
-    Planet
-}
+exports.GravityObject = GravityObject
+exports.Planet = Planet

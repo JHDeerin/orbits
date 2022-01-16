@@ -1,5 +1,3 @@
-import {GravityObject, Planet} from './classes.js'
-
 /**
  * Generates a unique ID string
  */
