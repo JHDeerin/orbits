@@ -147,7 +147,10 @@ export function drawTrajectoryLine(
     if (!gravityObj) {
         return;
     }
-    let objCopy = new GravityObject(
+    // Need to do a deep copy to avoid changing the actual object's positio;
+    // calls the actual constructor so we'll match the behavior of any subclass
+    // of GravityObject
+    let objCopy = new gravityObj.constructor(
         scene,
         gravityObj.position,
         gravityObj.velocity,

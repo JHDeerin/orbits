@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import {GravityObject, RapidShot} from './classes'
+import {GravityObject, RapidShot, LaserCannon} from './classes'
 import {drawTrajectoryLine, getRandomItem, generatePlanets} from './utils'
 
 const config = {
@@ -32,26 +32,6 @@ let playerShotSpeed = 50;
 let playerWeapon = new RapidShot();
 
 let graphics;
-
-/**
- * Returns a gravity object that would be fired by the player shooting, based
- * on their mouse position
- */
-function getShotGravityObject(scene, shotOriginPlanet, speed=50) {
-    if (!shotOriginPlanet || !shotOriginPlanet.body) {
-        return;
-    }
-    const mousePos = new Phaser.Math.Vector2(scene.input.x, scene.input.y);
-    let shotDirection = mousePos.clone().subtract(shotOriginPlanet.body.center).normalize();
-
-    return new GravityObject(
-        scene,
-        shotOriginPlanet.body.center.clone().add(
-            shotDirection.clone().scale(shotOriginPlanet.radius + 2)),
-        shotDirection.scale(speed),
-        shotOriginPlanet.color
-    );
-}
 
 function create() {
     graphics = this.add.graphics();
@@ -146,7 +126,7 @@ function update() {
             return;
         }
 
-        let trajectoryTracer = getShotGravityObject(this, playerPlanet, playerShotSpeed);
+        let trajectoryTracer = playerWeapon.getShotGravityObject(this, playerPlanet, playerShotSpeed);
         drawTrajectoryLine(
             this,
             graphics,

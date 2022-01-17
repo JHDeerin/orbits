@@ -122,9 +122,9 @@ export class GravityObject extends Phaser.GameObjects.Image {
         }
     }
 
-    drawObject() {
+    drawObject(trailLength = 10) {
         // Cap length of trail
-        if (this.prevPositionsQueue.length > 10) {
+        if (this.prevPositionsQueue.length > trailLength) {
             this.prevPositionsQueue.shift();
         }
 
@@ -187,9 +187,10 @@ export class GravityObject extends Phaser.GameObjects.Image {
 
 
 class Weapon {
-    constructor(cooldown=1.0, numShots=1) {
-        this.cooldownMs = cooldown
-        this.numShots = numShots
+    constructor(cooldown=1.0, numShots=1, damage=10) {
+        this.cooldownMs = cooldown;
+        this.numShots = numShots;
+        this.damage = damage;
         this.onCooldown = false;
     }
 
@@ -211,11 +212,18 @@ class Weapon {
             shotDirection.clone().scale(shotOriginPlanet.radius + 2));
     }
 
+    /**
+     * Returns a gravity object that would be fired by the player shooting, based
+     * on their mouse position
+     */
+     getShotGravityObject(scene, shotOriginPlanet, speed=50) {
+        return;
+     }
 }
 
 export class RapidShot extends Weapon {
-    constructor(cooldown=10.0, numShots=25, shotInterval=0.1) {
-        super(cooldown, numShots);
+    constructor(cooldown=10.0, numShots=25, damage=10, shotInterval=0.1) {
+        super(cooldown, numShots, damage);
         this.shotIntervalMs = shotInterval * 1000;
     }
 
@@ -229,16 +237,57 @@ export class RapidShot extends Weapon {
         }
     }
 
-    /**
-     * Returns a gravity object that would be fired by the player shooting, based
-     * on their mouse position
-     */
-     getShotGravityObject(scene, shotOriginPlanet, speed=50) {
+    getShotGravityObject(scene, shotOriginPlanet, speed=50) {
         if (!shotOriginPlanet || !shotOriginPlanet.body) { return; }
 
         let shotDirection = this.getShotDirection(scene, shotOriginPlanet);
-
         return new GravityObject(
+            scene,
+            this.getShotOriginPos(shotOriginPlanet, shotDirection),
+            shotDirection.scale(speed),
+            shotOriginPlanet.color
+        );
+    }
+}
+
+class LaserShot extends GravityObject {
+    /**
+     * A laser projectile  that isn't affected by gravity
+     */
+
+    getGravityAccelVector(heavyObjects, objectPos) {
+        let accelVector = new Phaser.Math.Vector2(0.0, 0.0);
+        return accelVector;
+    }
+
+    drawObject(trailLength = 10) {
+        super.drawObject(trailLength=50);
+    }
+}
+
+export class LaserCannon extends Weapon {
+    constructor(cooldown=10.0, numShots=1, damage=25, speed=500) {
+        super(cooldown, numShots, damage);
+        this.speed = speed;
+    }
+
+    async fire(scene, gravityObjects, shotOriginPlanet, speed=50) {
+        // TODO: Move cooldown logic to base class? Or avoid that for now?
+        if (this.onCooldown) { return; }
+        this.startCooldown();
+
+        speed = this.speed;
+        gravityObjects.add(this.getShotGravityObject(scene, shotOriginPlanet, speed));
+    }
+
+    /**
+     * Returns a laser object that isn't affected by gravity
+     */
+     getShotGravityObject(scene, shotOriginPlanet, speed) {
+        if (!shotOriginPlanet || !shotOriginPlanet.body) { return; }
+
+        let shotDirection = this.getShotDirection(scene, shotOriginPlanet);
+        return new LaserShot(
             scene,
             this.getShotOriginPos(shotOriginPlanet, shotDirection),
             shotDirection.scale(speed),

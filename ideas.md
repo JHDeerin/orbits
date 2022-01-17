@@ -31,7 +31,8 @@
             1.  Slightly adds to the resources the player gets (say, each probe increases this by +25%, so 4 probed planets would double your resource gain)
             2.  The planet enters your radar (say, for 100 units around them, so somewhat more than the probe had while in transit)
         -   If an enemy has already colonized the planet, then they're notified your probe has landed, you're notified that the technology level of the planet includes `ACTIVE MINING PROBE DETECTED`, planet outlines in yellow, but you both keep mining and get resources
-        -   If a probe lands on an enemy's home planet, it notifies you with a `RED ALERT` and highlights the planet in red; it does't generate any additional resources, and the probe is destroyed immediately upon landing (it's report is a "final transmission")
+        -   If a probe lands on an enemy's home planet, it notifies you with a `RED ALERT` and highlights the planet in red; it does't generate any additional resources, and the probe is destroyed immediately upon landing (it's report is a "final transmission"). The enemy is notified that their home planet has been probed.
+        -   ALSO, you need to land a probe on a planet in order to view its health (landing on an enemy planet still keeps the health revealed, even though the probe is technically "destroyed")
         -   If a probe can't find anything to land on within 60s, it self-destructs
     -   Weapons; once built, no ammo limit (unless otherwise stated), but have cooldowns between shots. 3 different weapon ideas:
         -   Swarm of small projectiles (say 25) fired in quick succession, moderate cooldown; 3 swarms entirely hitting would kill a planet
