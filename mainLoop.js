@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import {GravityObject} from './classes'
+import {GravityObject, RapidShot} from './classes'
 import {drawTrajectoryLine, getRandomItem, generatePlanets} from './utils'
 
 const config = {
@@ -29,6 +29,7 @@ let planets;
 let gravityObjects;
 let playerPlanet;
 let playerShotSpeed = 50;
+let playerWeapon = new RapidShot();
 
 let graphics;
 
@@ -89,7 +90,8 @@ function create() {
         if (!pointer.leftButtonDown()) { return; }
         if (!playerPlanet || !playerPlanet.body) { return; }
 
-        gravityObjects.add(getShotGravityObject(this, playerPlanet, playerShotSpeed));
+        playerWeapon.fire(this, gravityObjects, playerPlanet, playerShotSpeed);
+        // gravityObjects.add(getShotGravityObject(this, playerPlanet, playerShotSpeed));
     }
     this.input.on('pointerdown', fireNewProjectile, this);
 

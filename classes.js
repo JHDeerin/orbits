@@ -184,3 +184,65 @@ export class GravityObject extends Phaser.GameObjects.Image {
         planet.mass -= this.damage;
     }
 }
+
+
+class Weapon {
+    constructor(cooldown=1.0, numShots=1) {
+        this.cooldownMs = cooldown
+        this.numShots = numShots
+        this.onCooldown = false;
+    }
+
+    async fire(scene, gravityObjects, shotOriginPlanet, speed=50) {}
+
+    async startCooldown() {
+        this.onCooldown = true;
+        setTimeout(() => this.onCooldown = false, this.cooldownMs * 1000);
+    }
+
+    getShotDirection(scene, shotOriginPlanet) {
+        const mousePos = new Phaser.Math.Vector2(scene.input.x, scene.input.y);
+        let shotDirection = mousePos.clone().subtract(shotOriginPlanet.body.center).normalize();
+        return shotDirection;
+    }
+
+    getShotOriginPos(shotOriginPlanet, shotDirection) {
+        return shotOriginPlanet.body.center.clone().add(
+            shotDirection.clone().scale(shotOriginPlanet.radius + 2));
+    }
+
+}
+
+export class RapidShot extends Weapon {
+    constructor(cooldown=10.0, numShots=25, shotInterval=0.1) {
+        super(cooldown, numShots);
+        this.shotIntervalMs = shotInterval * 1000;
+    }
+
+    async fire(scene, gravityObjects, shotOriginPlanet, speed=50) {
+        // TODO: Move cooldown logic to base class? Or avoid that for now?
+        if (this.onCooldown) { return; }
+        this.startCooldown();
+        for (let i = 0; i < this.numShots; i++) {
+            gravityObjects.add(this.getShotGravityObject(scene, shotOriginPlanet, speed));
+            await new Promise(r => setTimeout(r, this.shotIntervalMs));
+        }
+    }
+
+    /**
+     * Returns a gravity object that would be fired by the player shooting, based
+     * on their mouse position
+     */
+     getShotGravityObject(scene, shotOriginPlanet, speed=50) {
+        if (!shotOriginPlanet || !shotOriginPlanet.body) { return; }
+
+        let shotDirection = this.getShotDirection(scene, shotOriginPlanet);
+
+        return new GravityObject(
+            scene,
+            this.getShotOriginPos(shotOriginPlanet, shotDirection),
+            shotDirection.scale(speed),
+            shotOriginPlanet.color
+        );
+    }
+}
