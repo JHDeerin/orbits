@@ -276,6 +276,45 @@ export class GravityObject extends Phaser.GameObjects.Image {
     onCollision(planet) {
         console.log("COLLISION!!!");
         planet.onCollision(this.damage);
+        new ExplosionEffect(this.scene, this.position);
+    }
+}
+
+class ExplosionEffect {
+    constructor (scene, position, startRadius=2, endRadius=5, duration=0.1, color=0xffffff) {
+        this.graphic = new Phaser.GameObjects.Graphics(scene);
+        this.position = position;
+        this.color = color;
+        this.startTime = new Date();
+        this.duration = duration;
+        this.startRadius = startRadius;
+        this.endRadius = endRadius;
+
+        // TODO: Currently this is only being drawn once on creation and never
+        // updated; that looks fine for now, but for larger explosions/durations
+        // will need to find a solution
+        this.drawObject();
+        scene.add.existing(this.graphic);
+        setTimeout(() => this.destroy(), duration * 1000);
+    }
+
+    drawObject () {
+        this.graphic.clear();
+
+        // Linearly interpolate between the start/end radii
+        // TODO: C
+        const currentTime = new Date();
+        const elapsedSeconds = (currentTime - this.startTime) / 1000.0;
+        const percentDone = elapsedSeconds / this.duration;
+        const currentRadius =  this.startRadius * (1.0 - percentDone) + this.endRadius * percentDone;
+
+        this.graphic.fillStyle(this.color);
+        this.graphic.fillCircle(this.position.x, this.position.y, currentRadius);
+    }
+
+    destroy() {
+        this.graphic.clear();
+        this.graphic.destroy();
     }
 }
 
