@@ -71,7 +71,7 @@ export class Planet extends Phaser.GameObjects.Image {
         this.body.setCircle(radius);
         this.body.setImmovable(true);   // Will only move by explicit update
 
-        if (type != PlanetType.Moon) {
+        if (type == PlanetType.Planet) {
             this.healthBar = new HealthBar(scene, this, this.mass, this.mass);
         }
     }
@@ -105,7 +105,9 @@ export class Planet extends Phaser.GameObjects.Image {
     }
 
     onCollision(damage) {
+        if (this.type == PlanetType.Sun) { return; }
         this.mass -= damage;
+
         if (!this.healthBar) { return; }
         this.healthBar.decrease(damage);
     }
