@@ -70,10 +70,6 @@ export class Planet extends Phaser.GameObjects.Image {
         scene.physics.add.existing(this);
         this.body.setCircle(radius);
         this.body.setImmovable(true);   // Will only move by explicit update
-
-        if (type == PlanetType.Planet) {
-            this.healthBar = new HealthBar(scene, this, this.mass, this.mass);
-        }
     }
 
     calcOrbitDuration(distance) {
@@ -117,6 +113,16 @@ export class Planet extends Phaser.GameObjects.Image {
             this.healthBar.destroy();
         }
         super.destroy();
+    }
+
+    discover() {
+        if (this.type != PlanetType.Planet) { return; }
+        if (this.healthBar) { return; }
+
+        // For now, just display the healthbar and return a blank dictionary of
+        // planet info
+        this.healthBar = new HealthBar(this.scene, this, this.mass, this.radius**2);
+        return {};
     }
 }
 
@@ -378,7 +384,8 @@ export class RapidShot extends Weapon {
             scene,
             this.getShotOriginPos(shotOriginPlanet, shotDirection),
             shotDirection.scale(speed),
-            shotOriginPlanet.color
+            shotOriginPlanet.color,
+            this.damage
         );
     }
 }
@@ -424,7 +431,50 @@ export class LaserCannon extends Weapon {
             scene,
             this.getShotOriginPos(shotOriginPlanet, shotDirection),
             shotDirection.scale(speed),
-            shotOriginPlanet.color
+            shotOriginPlanet.color,
+            this.damage
+        );
+    }
+}
+
+class Probe extends GravityObject {
+    /**
+     * An object that "discovers" planets for the player that launches it
+     */
+
+     onCollision(planet) {
+        console.log("COLLISION!!!");
+        planet.discover();
+    }
+}
+
+export class ProbeLauncher extends Weapon {
+    constructor(cooldown=10.0, numShots=1, damage=0) {
+        super(cooldown, numShots, damage);
+    }
+
+    async fire(scene, gravityObjects, shotOriginPlanet, speed=50) {
+        // TODO: Move cooldown logic to base class? Or avoid that for now?
+        if (this.onCooldown) { return; }
+        this.startCooldown();
+
+        gravityObjects.add(this.getShotGravityObject(scene, shotOriginPlanet, speed));
+    }
+
+    /**
+     * Returns a probe object that doesn't do damage, and "discovers" new
+     * planets for the player (reveals their health + details)
+     */
+     getShotGravityObject(scene, shotOriginPlanet, speed) {
+        if (!shotOriginPlanet || !shotOriginPlanet.body) { return; }
+
+        let shotDirection = this.getShotDirection(scene, shotOriginPlanet);
+        return new Probe(
+            scene,
+            this.getShotOriginPos(shotOriginPlanet, shotDirection),
+            shotDirection.scale(speed),
+            shotOriginPlanet.color,
+            this.damage
         );
     }
 }
