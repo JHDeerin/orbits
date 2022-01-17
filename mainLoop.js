@@ -2,6 +2,8 @@ import Phaser from 'phaser'
 import {GravityObject, RapidShot, LaserCannon, ProbeLauncher, PlanetType, Player} from './classes'
 import {drawTrajectoryLine, getRandomItem, generatePlanets} from './utils'
 
+const IS_DEBUG = false;
+
 const config = {
     type: Phaser.AUTO,
     width: window.innerWidth,
@@ -11,7 +13,7 @@ const config = {
         default: 'arcade',
         arcade: {
             gravity: { y: 0 },
-            debug: true
+            debug: IS_DEBUG
         }
     },
     scene: {
@@ -22,8 +24,6 @@ const config = {
 
 const game = new Phaser.Game(config);
 function preload() {}
-
-const IS_DEBUG = false;
 
 let planets;
 let gravityObjects;
@@ -58,6 +58,10 @@ function create() {
             }
         }
     );
+
+    this.input.keyboard.on('keydown-ONE', () => player.weapon = new RapidShot());
+    this.input.keyboard.on('keydown-TWO', () => player.weapon = new LaserCannon());
+    this.input.keyboard.on('keydown-THREE', () => player.weapon = new ProbeLauncher());
 
     function fireNewProjectile(pointer) {
         if (!pointer.leftButtonDown()) { return; }
