@@ -45,14 +45,6 @@ function create() {
     }
     playerPlanet = getRandomItem(newPlanets);
 
-    // TODO: Things seem to break if this isn't here? Why?
-    gravityObjects.add(new GravityObject(
-        this,
-        new Phaser.Math.Vector2(this.cameras.main.centerX, 200),
-        new Phaser.Math.Vector2(50, 0),
-        0xffaaaa
-    ));
-
     this.physics.add.collider(planets, gravityObjects,
         (planet, gravityObject) => {
             // TODO: Is this the most appropriate place for the collide handler?
@@ -104,7 +96,7 @@ function update() {
 
     function updateScreen() {
         graphics.clear();
-        GravityObject.tailGraphics.clear();
+        GravityObject.clearTails();
 
         for (let obj of gravityObjects.getChildren()) {
             obj.drawObject();

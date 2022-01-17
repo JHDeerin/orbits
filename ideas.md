@@ -37,6 +37,7 @@
     -   Weapons; once built, no ammo limit (unless otherwise stated), but have cooldowns between shots. 3 different weapon ideas:
         -   Swarm of small projectiles (say 25) fired in quick succession, moderate cooldown; 3 swarms entirely hitting would kill a planet
         -   1 large, fixed-speed, massive damage projectile (just 2 can kill a planet, can manually detonate (right click) for partial damage if there's a near-miss); long cooldown + you need to rebuild it each time (can only have 1 at a time - "due to the Geneva Protocol's OSHA regulations")
+            -   Also, this is the only thing that can destroy other projectiles (projectiles caught in it's explosion count as having collided)
         -   Laser (moderate damage (~10 shots to kill a planet), shoots perfectly straight and ALMOST instantaneously (much faster than other options, but still has some travel time), relatively long cooldown)
         -   You can build all 3, each costs the same amount, and each will be on separate cooldowns, so you could use one while another's on cooldown; all weapons have a trajectory guider built-in
     -   Increase home planet's radar range (+100 each time, still takes build time)

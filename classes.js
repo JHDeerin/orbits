@@ -117,6 +117,7 @@ export class GravityObject extends Phaser.GameObjects.Image {
         this.damage = damage;
 
         // TODO: Avoid this singleton?
+        // Holds the purely-graphical trails of all fired projectiles
         if (!GravityObject.tailGraphics) {
             GravityObject.tailGraphics = scene.add.graphics();
         }
@@ -141,6 +142,11 @@ export class GravityObject extends Phaser.GameObjects.Image {
                 nextPos.x, nextPos.y
             ));
         }
+    }
+
+    static clearTails() {
+        if (!GravityObject.tailGraphics) { return; }
+        GravityObject.tailGraphics.clear();
     }
 
     getGravityAccelVector(heavyObjects, objectPos) {
