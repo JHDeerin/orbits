@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import {GravityObject, RapidShot, LaserCannon} from './classes'
+import {GravityObject, RapidShot, LaserCannon, PlanetType} from './classes'
 import {drawTrajectoryLine, getRandomItem, generatePlanets} from './utils'
 
 const config = {
@@ -43,7 +43,9 @@ function create() {
     for (let planet of newPlanets) {
         planets.add(planet);
     }
-    playerPlanet = getRandomItem(newPlanets);
+    playerPlanet = getRandomItem(
+        newPlanets.filter(p => p.type != PlanetType.Moon)
+    );
 
     this.physics.add.collider(planets, gravityObjects,
         (planet, gravityObject) => {

@@ -1,6 +1,21 @@
 import Phaser from 'phaser'
 import {getUniqueID} from './utils'
 
+
+export class PlanetType {
+    /**
+     * An enum of the different types of planets we can have (TODO: Would
+     * inheritance be a better way to handle this?)
+     */
+    static Planet = new PlanetType("planet")
+    static Sun = new PlanetType("sun")
+    static Moon = new PlanetType("moon")
+
+    constructor(name) {
+        this.name = name;
+    }
+}
+
 export class Planet extends Phaser.GameObjects.Image {
     /**
      * A circular planet that has a gravitational field and orbits around the "sun" on a fixed path
@@ -11,8 +26,9 @@ export class Planet extends Phaser.GameObjects.Image {
      * @param {*} radius The radius of the planet (in pixels); larger planets have more mass (i.e a greater gravitational effect)
      * @param {*} startingAngle The angle of rotation for the planet to start at on its orbit, from 0 to 360 (0 = 3 o'clock, rotates clockwise)
      * @param {*} centerPos The position the planet should orbit around (defaults to the center of the screen, i.e. the sun)
+     * @param {PlanetType} type The type of planet this is
      */
-    constructor(scene, distance, color, radius, startingAngle=0, centerPos=new Phaser.Math.Vector2(scene.cameras.main.centerX, scene.cameras.main.centerY)) {
+    constructor(scene, distance, color, radius, startingAngle=0, centerPos=new Phaser.Math.Vector2(scene.cameras.main.centerX, scene.cameras.main.centerY), type=PlanetType.Planet) {
         // Create planet "image" from graphics
         let tempGraphics = scene.add.graphics();
         tempGraphics.clear();
@@ -31,6 +47,7 @@ export class Planet extends Phaser.GameObjects.Image {
         this.radius = radius;
         this.color = color;
 
+        this.type = type;
         this.orbitDistance = distance;
         this.mass = radius**2;
 

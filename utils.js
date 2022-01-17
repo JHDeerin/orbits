@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import {GravityObject, Planet} from './classes'
+import {GravityObject, Planet, PlanetType} from './classes'
 
 /**
  * Generates a unique ID string
@@ -45,14 +45,17 @@ export function generatePlanets(scene) {
     const GAS_GIANT_COLORS = [0xdcdfe4, 0xd8c4a8, 0xbd6428, 0xa57567];
 
     // Create the sun
-    generatedPlanets.push(new Planet(scene, 1e-5, 0xffff00, SUN_SIZE));
+    generatedPlanets.push(new Planet(scene, 1e-5, 0xffff00, SUN_SIZE, undefined, undefined, PlanetType.Sun));
 
     const numRockyPlanets = getRandomInt(2, 4);
     const numGasGiants = getRandomInt(3, 6);
     for (let i = 0; i < numRockyPlanets + numGasGiants; i++) {
+        // Generate planets progressively farther from center; rocky planets
+        // closer than gas giants
         const extraDist = getRandomInt(25, 125);
         const previousDist = generatedPlanets[i].orbitDistance;
         const previousSize = generatedPlanets[i].radius;
+
         //  TODO: Let there be a chance some gas giants are closer than rocky?
         if (i < numRockyPlanets) {
             const size = getRandomInt(ROCKY_PLANET_SIZES.min, ROCKY_PLANET_SIZES.max);
@@ -77,8 +80,9 @@ export function generatePlanets(scene) {
     const MOON_PROBABILITY = 0.2;
     const NUM_MOON_PER_PLANET = {min: 1, max:3}
     for (let i = 0; i < numRockyPlanets + numGasGiants; i++) {
-        let givePlanetMoon = Math.random() < MOON_PROBABILITY;
-        if (!givePlanetMoon) {
+        const givePlanetMoon = Math.random() < MOON_PROBABILITY;
+        const tooCloseToSun = generatedPlanets[i].orbitDistance < 5 + SUN_SIZE;
+        if (!givePlanetMoon || tooCloseToSun) {
             continue;
         }
 
@@ -93,7 +97,8 @@ export function generatePlanets(scene) {
                 getRandomItem(ROCKY_PLANET_COLORS),
                 moonSize,
                 j*360/numMoons,
-                generatedPlanets[i].body.center));
+                generatedPlanets[i].body.center,
+                PlanetType.Moon));
         }
     }
 
