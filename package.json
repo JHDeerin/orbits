@@ -7,10 +7,12 @@
   },
   "devDependencies": {
     "browserify": "^16.5.2",
+    "esmify": "^2.1.1",
+    "light-server": "^2.9.1",
     "watchify": "^3.11.1"
   },
   "scripts": {
-    "build": "browserify mainLoop.js -o bundle.js",
-    "watch": "watchify mainLoop.js -v -o bundle.js"
+    "build": "browserify -p esmify mainLoop.js -o bundle.js",
+    "dev": "light-server --serve . --port 8000 --watchexp '*.js # npm run build'"
   }
 }
