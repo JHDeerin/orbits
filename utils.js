@@ -1,7 +1,10 @@
+import Phaser from 'phaser'
+import {GravityObject, Planet} from './classes'
+
 /**
  * Generates a unique ID string
  */
-function getUniqueID(startingString='') {
+export function getUniqueID(startingString='') {
     // Store cache on function itself to keep state
     if (!getUniqueID.lastNum) {
         getUniqueID.lastNum = 0;
@@ -13,7 +16,7 @@ function getUniqueID(startingString='') {
 /**
  * Returns a random item from the given array
  */
-function getRandomItem(array) {
+export function getRandomItem(array) {
     return array[Math.floor(Math.random() * array.length)];
 }
 
@@ -31,7 +34,7 @@ function getRandomInt(min, max) {
  *
  * @param {*} scene The Phaser scene the planets will be in
  */
-function generatePlanets(scene) {
+export function generatePlanets(scene) {
     let generatedPlanets = [];
     const SUN_SIZE = 50;
     const ROCKY_PLANET_SIZES = {min: 5, max: 8};
@@ -127,7 +130,7 @@ function isInsidePlanet(gravityObj, planets) {
  * @param {*} lineColor The color to draw the path as
  * @param {*} isColliding If true, stop drawing the trajectory when it collides with an object
  */
-function drawTrajectoryLine(
+export function drawTrajectoryLine(
     scene,
     graphics,
     gravityObj,
@@ -171,10 +174,3 @@ function drawTrajectoryLine(
         graphics.strokeLineShape(lines[i]);
     }
 }
-
-export {
-    drawTrajectoryLine,
-    generatePlanets,
-    getUniqueID,
-    getRandomItem
-};

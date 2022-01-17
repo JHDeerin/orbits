@@ -1,7 +1,7 @@
-const Phaser = require('phaser')
-const {getUniqueID} = require('./utils')
+import Phaser from 'phaser'
+import {getUniqueID} from './utils'
 
-class Planet extends Phaser.GameObjects.Image {
+export class Planet extends Phaser.GameObjects.Image {
     /**
      * A circular planet that has a gravitational field and orbits around the "sun" on a fixed path
      *
@@ -77,7 +77,7 @@ class Planet extends Phaser.GameObjects.Image {
     }
 }
 
-class GravityObject extends Phaser.GameObjects.Image {
+export class GravityObject extends Phaser.GameObjects.Image {
     /**
      * An object whose motion is affected by gravity in the scene
      *
@@ -184,6 +184,3 @@ class GravityObject extends Phaser.GameObjects.Image {
         planet.mass -= this.damage;
     }
 }
-
-exports.GravityObject = GravityObject
-exports.Planet = Planet
