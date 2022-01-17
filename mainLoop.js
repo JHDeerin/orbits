@@ -28,6 +28,7 @@ const IS_DEBUG = false;
 let planets;
 let gravityObjects;
 let playerPlanet;
+let playerShotSpeed = 50;
 
 let graphics;
 
@@ -63,7 +64,6 @@ function create() {
     }
     playerPlanet = getRandomItem(newPlanets);
 
-    // Create an example gravity object
     // TODO: Things seem to break if this isn't here? Why?
     gravityObjects.add(new GravityObject(
         this,
@@ -86,16 +86,19 @@ function create() {
     );
 
     function fireNewProjectile(pointer) {
-        if (!pointer.leftButtonDown()) {
-            return;
-        }
-        if (!playerPlanet || !playerPlanet.body) {
-            return;
-        }
+        if (!pointer.leftButtonDown()) { return; }
+        if (!playerPlanet || !playerPlanet.body) { return; }
 
-        gravityObjects.add(getShotGravityObject(this, playerPlanet));
+        gravityObjects.add(getShotGravityObject(this, playerPlanet, playerShotSpeed));
     }
     this.input.on('pointerdown', fireNewProjectile, this);
+
+    function adjustShotSpeed(pointer) {
+        playerShotSpeed += pointer.deltaY * -0.1;
+        playerShotSpeed = Math.min(Math.max(10, playerShotSpeed), 100);
+        console.log(`Player shot speed: ${playerShotSpeed}`)
+    }
+    this.input.on('wheel', adjustShotSpeed, this);
     this.input.mouse.disableContextMenu();  // Disables menu on right-click
 
     console.log(planets);
@@ -141,7 +144,7 @@ function update() {
             return;
         }
 
-        let trajectoryTracer = getShotGravityObject(this, playerPlanet, 50);
+        let trajectoryTracer = getShotGravityObject(this, playerPlanet, playerShotSpeed);
         drawTrajectoryLine(
             this,
             graphics,

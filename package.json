@@ -13,6 +13,6 @@
   },
   "scripts": {
     "build": "browserify -p esmify mainLoop.js -o bundle.js",
-    "dev": "light-server --serve . --port 8000"
+    "dev": "light-server --serve . --port 8000 -w 'bundle.js'"
   }
 }
