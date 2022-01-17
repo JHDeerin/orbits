@@ -23,6 +23,8 @@ const config = {
 const game = new Phaser.Game(config);
 function preload() {}
 
+const IS_DEBUG = false;
+
 let planets;
 let gravityObjects;
 let playerPlanet;
@@ -62,6 +64,7 @@ function create() {
     playerPlanet = getRandomItem(newPlanets);
 
     // Create an example gravity object
+    // TODO: Things seem to break if this isn't here? Why?
     gravityObjects.add(new GravityObject(
         this,
         new Phaser.Math.Vector2(this.cameras.main.centerX, 200),
@@ -123,7 +126,13 @@ function update() {
         }
 
         drawPlayerShotTrajectory();
-        drawTrajectoryLine(this, graphics, gravityObjects.getChildren()[0], planets.getChildren(), 1000);
+        if (IS_DEBUG) {
+            // Draw the trajectory of the 1st projectile, if it exists
+            if (gravityObjects.getChildren()) {
+                drawTrajectoryLine(this, graphics, gravityObjects.getChildren()[0], planets.getChildren(), 1000);
+            }
+        }
+
     }
     updateScreen = updateScreen.bind(this); // Binding needed to reference Phaser scene
 
