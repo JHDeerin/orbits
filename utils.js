@@ -74,13 +74,15 @@ export function generatePlanets(scene) {
     }
 
     // Create moons around each planet
-    const NUM_MOON_PER_PLANET = {min: 1, max:1}
+    const MOON_PROBABILITY = 0.2;
+    const NUM_MOON_PER_PLANET = {min: 1, max:3}
     for (let i = 0; i < numRockyPlanets + numGasGiants; i++) {
-        const numMoons = getRandomInt(NUM_MOON_PER_PLANET.min, NUM_MOON_PER_PLANET.max);
-        if (!numMoons) {
+        let givePlanetMoon = Math.random() < MOON_PROBABILITY;
+        if (!givePlanetMoon) {
             continue;
         }
 
+        const numMoons = getRandomInt(NUM_MOON_PER_PLANET.min, NUM_MOON_PER_PLANET.max);
         const moonDistance = getRandomInt(5, 15);
         const planetSize = generatedPlanets[i].radius;
         for (let j = 0; j < numMoons; j++) {
