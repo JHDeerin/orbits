@@ -103,6 +103,9 @@ function update() {
         for (let obj of gravityObjects.getChildren()) {
             obj.drawObject();
         }
+        for (let obj of planets.getChildren()) {
+            obj.drawObject();
+        }
 
         drawPlayerShotTrajectory();
         if (IS_DEBUG) {

@@ -70,6 +70,10 @@ export class Planet extends Phaser.GameObjects.Image {
         scene.physics.add.existing(this);
         this.body.setCircle(radius);
         this.body.setImmovable(true);   // Will only move by explicit update
+
+        if (type != PlanetType.Moon) {
+            this.healthBar = new HealthBar(scene, this, this.mass, this.mass);
+        }
     }
 
     calcOrbitDuration(distance) {
@@ -91,6 +95,71 @@ export class Planet extends Phaser.GameObjects.Image {
         this.orbitPath.getPoint(this.t, newPosition);
         newPosition.add(this.orbitCenter).subtract(this.screenCenter);
         this.body.reset(newPosition.x, newPosition.y);
+    }
+
+    drawObject() {
+        // Only need to draw the health bar, since the planet graphic itself
+        // doesn't change
+        if (!this.healthBar) { return; }
+        this.healthBar.drawObject();
+    }
+
+    onCollision(damage) {
+        this.mass -= damage;
+        if (!this.healthBar) { return; }
+        this.healthBar.decrease(damage);
+    }
+
+    destroy() {
+        if (this.healthBar) {
+            this.healthBar.destroy();
+        }
+        super.destroy();
+    }
+}
+
+class HealthBar {
+    constructor (scene, planet, health, maxHealth) {
+        this.bar = new Phaser.GameObjects.Graphics(scene);
+        this.value = health;
+        this.maxValue = maxHealth;
+        this.planet = planet;
+        this.width = 50;
+        this.height = 5;
+
+        this.drawObject();
+        scene.add.existing(this.bar);
+    }
+
+    decrease (amount) {
+        this.value -= amount;
+        this.value = Math.max(this.value, 0);
+    }
+
+    drawObject () {
+        this.bar.clear();
+
+        const planetPos = this.planet.body.position;
+        // Center health bar above planet
+        const barX = planetPos.x + this.planet.radius - this.width/2;
+        const barY = planetPos.y - 10;
+        //  Draw background
+        this.bar.fillStyle(0x15171c);
+        this.bar.fillRect(barX, barY, this.width, this.height);
+
+        //  Draw health
+        const healthPercent = this.value / this.maxValue;
+        if (healthPercent < 0.3) {
+            this.bar.fillStyle(0xff0000);
+        } else {
+            this.bar.fillStyle(0x00ff00);
+        }
+        this.bar.fillRect(barX, barY, this.width * healthPercent, this.height);
+    }
+
+    destroy() {
+        this.bar.clear();
+        this.bar.destroy();
     }
 }
 
@@ -204,7 +273,7 @@ export class GravityObject extends Phaser.GameObjects.Image {
 
     onCollision(planet) {
         console.log("COLLISION!!!");
-        planet.mass -= this.damage;
+        planet.onCollision(this.damage);
     }
 }
 
