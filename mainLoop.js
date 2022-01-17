@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import {GravityObject, RapidShot, LaserCannon, ProbeLauncher, PlanetType} from './classes'
+import {GravityObject, RapidShot, LaserCannon, ProbeLauncher, PlanetType, Player} from './classes'
 import {drawTrajectoryLine, getRandomItem, generatePlanets} from './utils'
 
 const config = {
@@ -27,9 +27,7 @@ const IS_DEBUG = false;
 
 let planets;
 let gravityObjects;
-let playerPlanet;
-let playerShotSpeed = 50;
-let playerWeapon = new ProbeLauncher();
+let player;
 
 let graphics;
 
@@ -43,10 +41,10 @@ function create() {
     for (let planet of newPlanets) {
         planets.add(planet);
     }
-    playerPlanet = getRandomItem(
+    const playerPlanet = getRandomItem(
         newPlanets.filter(p => p.type != PlanetType.Moon)
     );
-    playerPlanet.discover();
+    player = new Player(playerPlanet, 50, new ProbeLauncher());
 
     this.physics.add.collider(planets, gravityObjects,
         (planet, gravityObject) => {
@@ -63,17 +61,16 @@ function create() {
 
     function fireNewProjectile(pointer) {
         if (!pointer.leftButtonDown()) { return; }
-        if (!playerPlanet || !playerPlanet.body) { return; }
+        if (!player.planet || !player.planet.body) { return; }
 
-        playerWeapon.fire(this, gravityObjects, playerPlanet, playerShotSpeed);
-        // gravityObjects.add(getShotGravityObject(this, playerPlanet, playerShotSpeed));
+        player.weapon.fire(this, gravityObjects, player.planet, player.shotSpeed);
     }
     this.input.on('pointerdown', fireNewProjectile, this);
 
     function adjustShotSpeed(pointer) {
-        playerShotSpeed += pointer.deltaY * -0.1;
-        playerShotSpeed = Math.min(Math.max(10, playerShotSpeed), 100);
-        console.log(`Player shot speed: ${playerShotSpeed}`)
+        player.shotSpeed += pointer.deltaY * -0.1;
+        player.shotSpeed = Math.min(Math.max(player.minShotSpeed, player.shotSpeed), player.maxShotSpeed);
+        console.log(`Player shot speed: ${player.shotSpeed}`)
     }
     this.input.on('wheel', adjustShotSpeed, this);
     this.input.mouse.disableContextMenu();  // Disables menu on right-click
@@ -120,11 +117,11 @@ function update() {
     updateScreen = updateScreen.bind(this); // Binding needed to reference Phaser scene
 
     function drawPlayerShotTrajectory() {
-        if (!playerPlanet) {
+        if (!player.planet) {
             return;
         }
 
-        let trajectoryTracer = playerWeapon.getShotGravityObject(this, playerPlanet, playerShotSpeed);
+        let trajectoryTracer = player.weapon.getShotGravityObject(this, player.planet, player.shotSpeed);
         drawTrajectoryLine(
             this,
             graphics,

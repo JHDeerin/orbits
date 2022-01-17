@@ -478,3 +478,23 @@ export class ProbeLauncher extends Weapon {
         );
     }
 }
+
+export class Player {
+    /**
+     * An object that represents a player and all their relevant items
+     */
+
+    constructor(planet, shotSpeed=50, weapon=None) {
+        this.planet = planet;
+        this.shotSpeed = shotSpeed;
+        this.weapon = weapon;
+
+        this.minShotSpeed = 10;
+        this.maxShotSpeed = 100;
+
+        this.resources = 0;
+        this.landedProbes = [];
+
+        this.planet.discover();
+    }
+}
