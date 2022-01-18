@@ -30,9 +30,15 @@ let gravityObjects;
 let player;
 
 let graphics;
+let resourceText;
+let weaponText;
+let weaponStatusText;
 
 function create() {
     graphics = this.add.graphics();
+    resourceText = this.add.text(16, 16);
+    weaponText = this.add.text(16, 40);
+    weaponStatusText = this.add.text(16, 64);
 
     planets = this.physics.add.group();
     gravityObjects = this.physics.add.group();
@@ -44,7 +50,8 @@ function create() {
     const playerPlanet = getRandomItem(
         newPlanets.filter(p => p.type != PlanetType.Moon)
     );
-    player = new Player(playerPlanet, 50, new ProbeLauncher());
+    player = new Player(playerPlanet, 50, new RapidShot());
+    weaponText.setText('Weapon: RapidShot');
 
     this.physics.add.collider(planets, gravityObjects,
         (planet, gravityObject) => {
@@ -59,10 +66,22 @@ function create() {
         }
     );
 
-    this.input.keyboard.on('keydown-ONE', () => player.weapon = new RapidShot());
-    this.input.keyboard.on('keydown-TWO', () => player.weapon = new LaserCannon());
-    this.input.keyboard.on('keydown-THREE', () => player.weapon = new NukeLauncher(undefined, undefined, undefined, planets, gravityObjects));
-    this.input.keyboard.on('keydown-FOUR', () => player.weapon = new ProbeLauncher());
+    this.input.keyboard.on('keydown-ONE', () => {
+        player.weapon = new RapidShot();
+        weaponText.setText('Weapon: RapidShot');
+    });
+    this.input.keyboard.on('keydown-TWO', () => {
+        player.weapon = new LaserCannon();
+        weaponText.setText('Weapon: LaserCannon');
+    });
+    this.input.keyboard.on('keydown-THREE', () => {
+        player.weapon = new NukeLauncher(undefined, undefined, undefined, planets, gravityObjects);
+        weaponText.setText('Weapon: NukeLauncher');
+    });
+    this.input.keyboard.on('keydown-FOUR', () => {
+        player.weapon = new ProbeLauncher(undefined, undefined, undefined, player);
+        weaponText.setText('Weapon: ProbeLauncher');
+    });
 
     function fireNewProjectile(pointer) {
         if (!pointer.leftButtonDown()) { return; }
@@ -84,7 +103,7 @@ function create() {
     console.log(gravityObjects);
 }
 
-function update() {
+function update(timestep, dt) {
     function updatePositions() {
         const timeDiff = 1/60;
         // NOTE: GravityObjects are affected by planet gravity, but do NOT affect one another
@@ -118,6 +137,15 @@ function update() {
             }
         }
 
+        resourceText.setText(`Resources: ${Math.round(player.resources)}`);
+        const cooldownTimeLeft = Math.max(0,
+            (player.weapon.cooldownSec - (new Date() - player.weapon.lastFiredTime) / 1000.0)
+        );
+        weaponStatusText.setText(`Weapon Status: ${
+            player.weapon.onCooldown
+            ? 'Cooldown (' + Math.ceil(10 * cooldownTimeLeft)/10.0 + 's left)'
+            : 'Active'
+        }`);
     }
     updateScreen = updateScreen.bind(this); // Binding needed to reference Phaser scene
 
@@ -142,6 +170,8 @@ function update() {
         }
     }
     drawPlayerShotTrajectory = drawPlayerShotTrajectory.bind(this); // Binding needed to reference Phaser scene
+
+    player.addResources(dt/1000.0);
 
     updatePositions();
     updateScreen();

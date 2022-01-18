@@ -326,17 +326,19 @@ class ExplosionEffect {
 
 class Weapon {
     constructor(cooldown=1.0, numShots=1, damage=10) {
-        this.cooldownMs = cooldown;
+        this.cooldownSec = cooldown;
         this.numShots = numShots;
         this.damage = damage;
         this.onCooldown = false;
+        this.lastFiredTime = new Date();
     }
 
     async fire(scene, gravityObjects, shotOriginPlanet, speed=50) {}
 
     async startCooldown() {
         this.onCooldown = true;
-        setTimeout(() => this.onCooldown = false, this.cooldownMs * 1000);
+        setTimeout(() => this.onCooldown = false, this.cooldownSec * 1000);
+        this.lastFiredTime = new Date();
     }
 
     getShotDirection(scene, shotOriginPlanet) {
@@ -462,7 +464,6 @@ class Nuke extends GravityObject {
             }
         }
 
-        console.log(this.gravityObjects.getChildren());
         const nukePos = this.body.center;
         // Mark objects as to be deleted, then remove them afterwards to avoid
         // weird bugs from deleting while iterating over list
@@ -472,7 +473,6 @@ class Nuke extends GravityObject {
             if (gravObj.body.center === nukePos) { continue; }
 
             const distance = nukePos.distance(gravObj.body.center);
-            console.log(distance);
             if (distance < this.explosionRadius) {
                 toBeRemoved.push(gravObj);
             }
@@ -543,16 +543,27 @@ class Probe extends GravityObject {
     /**
      * An object that "discovers" planets for the player that launches it
      */
+    constructor(scene, position, velocity, color, damage, player) {
+        super(scene, position, velocity, color, damage);
+        this.player = player;
+    }
 
      onCollision(planet) {
         console.log("COLLISION!!!");
+        if (planet.type != PlanetType.Planet) { return; }
+        // TODO: Means planet has already been probed by us; should have a better way
+        if (planet.healthBar) { return; }
+
         planet.discover();
+        this.player.addProbedPlanet(planet);
     }
 }
 
 export class ProbeLauncher extends Weapon {
-    constructor(cooldown=10.0, numShots=1, damage=0) {
+    constructor(cooldown=10.0, numShots=1, damage=0, player) {
         super(cooldown, numShots, damage);
+        this.player = player;
+        console.log(this.player);
     }
 
     async fire(scene, gravityObjects, shotOriginPlanet, speed=50) {
@@ -576,7 +587,8 @@ export class ProbeLauncher extends Weapon {
             this.getShotOriginPos(shotOriginPlanet, shotDirection),
             shotDirection.scale(speed),
             shotOriginPlanet.color,
-            this.damage
+            this.damage,
+            this.player
         );
     }
 }
@@ -595,8 +607,22 @@ export class Player {
         this.maxShotSpeed = 100;
 
         this.resources = 0;
-        this.landedProbes = [];
+        this.probedPlanets = [];
 
         this.planet.discover();
+    }
+
+    addProbedPlanet(planet) {
+        if (this === planet) { return; }
+        this.probedPlanets.push(planet);
+    }
+
+    addResources(secondsElapsed=1.0) {
+        // base resource amount for home planet
+         this.resources += 100 * secondsElapsed;
+        // additional amounts for active probes
+        const activeProbes = this.probedPlanets.reduce(
+            (prev, planet) => prev + (planet.body ? 1 : 0), 0);
+        this.resources += 25 * activeProbes * secondsElapsed;
     }
 }
