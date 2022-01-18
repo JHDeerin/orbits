@@ -308,7 +308,6 @@ class ExplosionEffect {
         this.graphic.clear();
 
         // Linearly interpolate between the start/end radii
-        // TODO: C
         const currentTime = new Date();
         const elapsedSeconds = (currentTime - this.startTime) / 1000.0;
         const percentDone = elapsedSeconds / this.duration;
@@ -433,6 +432,109 @@ export class LaserCannon extends Weapon {
             shotDirection.scale(speed),
             shotOriginPlanet.color,
             this.damage
+        );
+    }
+}
+
+class Nuke extends GravityObject {
+    /**
+     * A giant explosive object that can be manually detonated and destroys
+     * missiles
+     */
+    explosionRadius = 50;
+    constructor(scene, position, velocity, color, damage, planets, gravityObjects) {
+        super(scene, position, velocity, color, damage);
+        this.planets = planets;
+        this.gravityObjects = gravityObjects;
+    }
+
+    detonate() {
+        console.log("DETONATING!");
+        for (let planet of this.planets.getChildren()) {
+            const distance = this.body.center.distance(planet.body.center);
+            if (distance < this.explosionRadius) {
+                const damage = this.damage * (distance / this.explosionRadius);
+                planet.onCollision(damage);
+                if (planet.mass <= 0) {
+                    this.planets.remove(planet);
+                    planet.destroy();
+                }
+            }
+        }
+
+        console.log(this.gravityObjects.getChildren());
+        const nukePos = this.body.center;
+        // Mark objects as to be deleted, then remove them afterwards to avoid
+        // weird bugs from deleting while iterating over list
+        let toBeRemoved = [];
+        for (let gravObj of this.gravityObjects.getChildren()) {
+            // don't delete ourselves yet
+            if (gravObj.body.center === nukePos) { continue; }
+
+            const distance = nukePos.distance(gravObj.body.center);
+            console.log(distance);
+            if (distance < this.explosionRadius) {
+                toBeRemoved.push(gravObj);
+            }
+        }
+
+        toBeRemoved.map((gravObj) => {
+            this.gravityObjects.remove(gravObj);
+            gravObj.destroy();
+        });
+
+        this.gravityObjects.remove(this);
+        new ExplosionEffect(this.scene, this.position, this.explosionRadius, this.explosionRadius);
+        this.destroy();
+    }
+
+     onCollision(planet) {
+        console.log("COLLISION!!!");
+        // Apply extra damage for a direct hit
+        planet.onCollision(this.damage);
+        this.detonate();
+    }
+}
+
+export class NukeLauncher extends Weapon {
+    constructor(cooldown=30.0, numShots=1, damage=200, planets, gravityObjects) {
+        super(cooldown, numShots, damage);
+        this.planets = planets;
+        this.gravityObjects = gravityObjects;
+    }
+
+    async fire(scene, gravityObjects, shotOriginPlanet, speed=50) {
+        // TODO: Move cooldown logic to base class? Or avoid that for now?
+        if (this.onCooldown) { return; }
+        this.startCooldown();
+
+        const nuke = this.getShotGravityObject(scene, shotOriginPlanet, speed);
+        gravityObjects.add(nuke);
+
+        // TODO: FOR TESTING ONLY! Find a more robust way to activate this
+        scene.input.on('pointerdown', (pointer) => {
+            if (!pointer.rightButtonDown() || !nuke.body) { return; }
+            console.log('NukeLauncher - Right click received');
+            nuke.detonate();
+        });
+    }
+
+    /**
+     * Returns a probe object that doesn't do damage, and "discovers" new
+     * planets for the player (reveals their health + details)
+     */
+     getShotGravityObject(scene, shotOriginPlanet, speed) {
+        if (!shotOriginPlanet || !shotOriginPlanet.body) { return; }
+
+        let shotDirection = this.getShotDirection(scene, shotOriginPlanet);
+        return new Nuke(
+            scene,
+            this.getShotOriginPos(shotOriginPlanet, shotDirection),
+            shotDirection.scale(speed),
+            shotOriginPlanet.color,
+            this.damage,
+            this.planets,
+            this.gravityObjects
         );
     }
 }

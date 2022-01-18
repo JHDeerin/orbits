@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import {GravityObject, RapidShot, LaserCannon, ProbeLauncher, PlanetType, Player} from './classes'
+import {GravityObject, RapidShot, LaserCannon, NukeLauncher, ProbeLauncher, PlanetType, Player} from './classes'
 import {drawTrajectoryLine, getRandomItem, generatePlanets} from './utils'
 
 const IS_DEBUG = false;
@@ -61,7 +61,8 @@ function create() {
 
     this.input.keyboard.on('keydown-ONE', () => player.weapon = new RapidShot());
     this.input.keyboard.on('keydown-TWO', () => player.weapon = new LaserCannon());
-    this.input.keyboard.on('keydown-THREE', () => player.weapon = new ProbeLauncher());
+    this.input.keyboard.on('keydown-THREE', () => player.weapon = new NukeLauncher(undefined, undefined, undefined, planets, gravityObjects));
+    this.input.keyboard.on('keydown-FOUR', () => player.weapon = new ProbeLauncher());
 
     function fireNewProjectile(pointer) {
         if (!pointer.leftButtonDown()) { return; }
