@@ -50,6 +50,7 @@ export class Planet extends Phaser.GameObjects.Image {
         this.type = type;
         this.orbitDistance = distance;
         this.mass = radius**2;
+        this.radarRange = 0;
 
         this.orbitPath = new Phaser.Curves.Path();
         this.orbitPath.add(new Phaser.Curves.Ellipse(
@@ -115,13 +116,14 @@ export class Planet extends Phaser.GameObjects.Image {
         super.destroy();
     }
 
-    discover() {
+    discover(radarRange=100) {
         if (this.type != PlanetType.Planet) { return; }
         if (this.healthBar) { return; }
 
         // For now, just display the healthbar and return a blank dictionary of
         // planet info
         this.healthBar = new HealthBar(this.scene, this, this.mass, this.radius**2);
+        this.radarRange = radarRange
         return {};
     }
 }
@@ -181,10 +183,10 @@ export class GravityObject extends Phaser.GameObjects.Image {
      * @param {Number} color The hexadecimal color the object should be
      * @param {*} damage How much damage the object inflicts when it hits something
      */
-    constructor(scene, position, velocity, color, damage=10) {
+    constructor(scene, position, velocity, color, damage=10, isPlayerProjectile=true) {
         const radius = 1;
         // Draw image via graphics
-        let tempGraphics = scene.add.graphics();
+        const tempGraphics = scene.add.graphics();
         tempGraphics.fillStyle(color, radius);
         // TODO: Why does shifting this position affect the image??? Generate image from (0,0), maybe?
         tempGraphics.fillCircle(radius, radius, radius);
@@ -209,6 +211,7 @@ export class GravityObject extends Phaser.GameObjects.Image {
         this.prevPositionsQueue = [];
         this.radius = radius;
         this.damage = damage;
+        this.isPlayerProjectile = isPlayerProjectile;
 
         // TODO: Avoid this singleton?
         // Holds the purely-graphical trails of all fired projectiles
@@ -217,10 +220,14 @@ export class GravityObject extends Phaser.GameObjects.Image {
         }
     }
 
-    drawObject(trailLength = 10) {
+    drawObject(radarObjects, trailLength = 10) {
         // Cap length of trail
         if (this.prevPositionsQueue.length > trailLength) {
             this.prevPositionsQueue.shift();
+        }
+        this.visible = this.isPlayerProjectile || this.isInRadarRange(radarObjects);
+        if (!this.visible) {
+            return;
         }
 
         // Draw trail behind it (TODO: Find more efficient way of doing this?)
@@ -241,6 +248,16 @@ export class GravityObject extends Phaser.GameObjects.Image {
     static clearTails() {
         if (!GravityObject.tailGraphics) { return; }
         GravityObject.tailGraphics.clear();
+    }
+
+    isInRadarRange(radarObjects) {
+        for (let radar of radarObjects) {
+            const distance = this.body.center.distance(radar.body.center);
+            if (distance < radar.radarRange) {
+                return true;
+            }
+        }
+        return false;
     }
 
     getGravityAccelVector(heavyObjects, objectPos) {
@@ -304,7 +321,7 @@ class ExplosionEffect {
         setTimeout(() => this.destroy(), duration * 1000);
     }
 
-    drawObject () {
+    drawObject() {
         this.graphic.clear();
 
         // Linearly interpolate between the start/end radii
@@ -401,8 +418,8 @@ class LaserShot extends GravityObject {
         return accelVector;
     }
 
-    drawObject(trailLength = 10) {
-        super.drawObject(trailLength=50);
+    drawObject(radarObjects, trailLength = 50) {
+        super.drawObject(radarObjects, trailLength);
     }
 }
 
@@ -609,7 +626,8 @@ export class Player {
         this.resources = 0;
         this.probedPlanets = [];
 
-        this.planet.discover();
+        // Give a larger than normal radar range to this planet
+        this.planet.discover(200);
     }
 
     addProbedPlanet(planet) {

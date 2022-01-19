@@ -122,8 +122,9 @@ function update(timestep, dt) {
         graphics.clear();
         GravityObject.clearTails();
 
+        const radarObjects = planets.getChildren();
         for (let obj of gravityObjects.getChildren()) {
-            obj.drawObject();
+            obj.drawObject(radarObjects);
         }
         for (let obj of planets.getChildren()) {
             obj.drawObject();
