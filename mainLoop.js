@@ -50,7 +50,11 @@ function create() {
     const playerPlanet = getRandomItem(
         newPlanets.filter(p => p.type != PlanetType.Moon)
     );
-    player = new Player(playerPlanet, 50, new RapidShot());
+
+    const LASER_RED = 0xff5500;
+    const ION_BLUE = 0x00aaff;
+    // 0x4c4cff
+    player = new Player(playerPlanet, 50, ION_BLUE, new RapidShot());
     weaponText.setText('Weapon: RapidShot');
 
     this.physics.add.collider(planets, gravityObjects,
@@ -87,7 +91,7 @@ function create() {
         if (!pointer.leftButtonDown()) { return; }
         if (!player.planet || !player.planet.body) { return; }
 
-        player.weapon.fire(this, gravityObjects, player.planet, player.shotSpeed);
+        player.weapon.fire(this, gravityObjects, player.planet, player.color, player.shotSpeed);
     }
     this.input.on('pointerdown', fireNewProjectile, this);
 
@@ -155,7 +159,7 @@ function update(timestep, dt) {
             return;
         }
 
-        let trajectoryTracer = player.weapon.getShotGravityObject(this, player.planet, player.shotSpeed);
+        let trajectoryTracer = player.weapon.getShotGravityObject(this, player.planet, player.shotSpeed, player.color);
         drawTrajectoryLine(
             this,
             graphics,

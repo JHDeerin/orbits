@@ -386,7 +386,7 @@ class Weapon {
      * Returns a gravity object that would be fired by the player shooting, based
      * on their mouse position
      */
-     getShotGravityObject(scene, shotOriginPlanet, speed=50) {
+     getShotGravityObject(scene, gravityObjects, shotOriginPlanet, color, speed=50) {
         return;
      }
 }
@@ -397,17 +397,17 @@ export class RapidShot extends Weapon {
         this.shotIntervalMs = shotInterval * 1000;
     }
 
-    async fire(scene, gravityObjects, shotOriginPlanet, speed=50) {
+    async fire(scene, gravityObjects, shotOriginPlanet, color, speed=50) {
         // TODO: Move cooldown logic to base class? Or avoid that for now?
         if (this.onCooldown) { return; }
         this.startCooldown();
         for (let i = 0; i < this.numShots; i++) {
-            gravityObjects.add(this.getShotGravityObject(scene, shotOriginPlanet, speed));
+            gravityObjects.add(this.getShotGravityObject(scene, shotOriginPlanet, speed, color));
             await new Promise(r => setTimeout(r, this.shotIntervalMs));
         }
     }
 
-    getShotGravityObject(scene, shotOriginPlanet, speed=50) {
+    getShotGravityObject(scene, shotOriginPlanet, speed=50, color) {
         if (!shotOriginPlanet || !shotOriginPlanet.body) { return; }
 
         let shotDirection = this.getShotDirection(scene, shotOriginPlanet);
@@ -415,7 +415,7 @@ export class RapidShot extends Weapon {
             scene,
             this.getShotOriginPos(shotOriginPlanet, shotDirection),
             shotDirection.scale(speed),
-            shotOriginPlanet.color,
+            color,
             this.damage
         );
     }
@@ -442,19 +442,19 @@ export class LaserCannon extends Weapon {
         this.speed = speed;
     }
 
-    async fire(scene, gravityObjects, shotOriginPlanet, speed=50) {
+    async fire(scene, gravityObjects, shotOriginPlanet, color, speed=500) {
         // TODO: Move cooldown logic to base class? Or avoid that for now?
         if (this.onCooldown) { return; }
         this.startCooldown();
 
         speed = this.speed;
-        gravityObjects.add(this.getShotGravityObject(scene, shotOriginPlanet, speed));
+        gravityObjects.add(this.getShotGravityObject(scene, shotOriginPlanet, speed, color));
     }
 
     /**
      * Returns a laser object that isn't affected by gravity
      */
-     getShotGravityObject(scene, shotOriginPlanet, speed) {
+     getShotGravityObject(scene, shotOriginPlanet, speed, color) {
         if (!shotOriginPlanet || !shotOriginPlanet.body) { return; }
 
         let shotDirection = this.getShotDirection(scene, shotOriginPlanet);
@@ -462,7 +462,7 @@ export class LaserCannon extends Weapon {
             scene,
             this.getShotOriginPos(shotOriginPlanet, shotDirection),
             shotDirection.scale(speed),
-            shotOriginPlanet.color,
+            color,
             this.damage
         );
     }
@@ -533,12 +533,12 @@ export class NukeLauncher extends Weapon {
         this.gravityObjects = gravityObjects;
     }
 
-    async fire(scene, gravityObjects, shotOriginPlanet, speed=50) {
+    async fire(scene, gravityObjects, shotOriginPlanet, color, speed=50) {
         // TODO: Move cooldown logic to base class? Or avoid that for now?
         if (this.onCooldown) { return; }
         this.startCooldown();
 
-        const nuke = this.getShotGravityObject(scene, shotOriginPlanet, speed);
+        const nuke = this.getShotGravityObject(scene, shotOriginPlanet, speed, color);
         gravityObjects.add(nuke);
 
         // TODO: FOR TESTING ONLY! Find a more robust way to activate this
@@ -553,7 +553,7 @@ export class NukeLauncher extends Weapon {
      * Returns a probe object that doesn't do damage, and "discovers" new
      * planets for the player (reveals their health + details)
      */
-     getShotGravityObject(scene, shotOriginPlanet, speed) {
+     getShotGravityObject(scene, shotOriginPlanet, speed, color) {
         if (!shotOriginPlanet || !shotOriginPlanet.body) { return; }
 
         let shotDirection = this.getShotDirection(scene, shotOriginPlanet);
@@ -561,7 +561,7 @@ export class NukeLauncher extends Weapon {
             scene,
             this.getShotOriginPos(shotOriginPlanet, shotDirection),
             shotDirection.scale(speed),
-            shotOriginPlanet.color,
+            color,
             this.damage,
             this.planets,
             this.gravityObjects
@@ -596,19 +596,19 @@ export class ProbeLauncher extends Weapon {
         console.log(this.player);
     }
 
-    async fire(scene, gravityObjects, shotOriginPlanet, speed=50) {
+    async fire(scene, gravityObjects, shotOriginPlanet, color, speed=50) {
         // TODO: Move cooldown logic to base class? Or avoid that for now?
         if (this.onCooldown) { return; }
         this.startCooldown();
 
-        gravityObjects.add(this.getShotGravityObject(scene, shotOriginPlanet, speed));
+        gravityObjects.add(this.getShotGravityObject(scene, shotOriginPlanet, speed, color));
     }
 
     /**
      * Returns a probe object that doesn't do damage, and "discovers" new
      * planets for the player (reveals their health + details)
      */
-     getShotGravityObject(scene, shotOriginPlanet, speed) {
+     getShotGravityObject(scene, shotOriginPlanet, speed, color)  {
         if (!shotOriginPlanet || !shotOriginPlanet.body) { return; }
 
         let shotDirection = this.getShotDirection(scene, shotOriginPlanet);
@@ -616,7 +616,7 @@ export class ProbeLauncher extends Weapon {
             scene,
             this.getShotOriginPos(shotOriginPlanet, shotDirection),
             shotDirection.scale(speed),
-            shotOriginPlanet.color,
+            color,
             this.damage,
             this.player
         );
@@ -628,10 +628,11 @@ export class Player {
      * An object that represents a player and all their relevant items
      */
 
-    constructor(planet, shotSpeed=50, weapon=None) {
+    constructor(planet, shotSpeed=50, color=None, weapon=None) {
         this.planet = planet;
         this.shotSpeed = shotSpeed;
         this.weapon = weapon;
+        this.color = color ? color : planet.color;
 
         this.minShotSpeed = 10;
         this.maxShotSpeed = 100;
