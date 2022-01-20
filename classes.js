@@ -92,6 +92,9 @@ export class Planet extends Phaser.GameObjects.Image {
         this.orbitPath.getPoint(this.t, newPosition);
         newPosition.add(this.orbitCenter).subtract(this.screenCenter);
         this.body.reset(newPosition.x, newPosition.y);
+        if (this.radarCircle) {
+            this.radarCircle.position = this.body.center;
+        }
     }
 
     drawObject() {
@@ -99,6 +102,9 @@ export class Planet extends Phaser.GameObjects.Image {
         // doesn't change
         if (!this.healthBar) { return; }
         this.healthBar.drawObject();
+
+        if (!this.radarCircle) { return; }
+        this.radarCircle.drawObject();
     }
 
     onCollision(damage) {
@@ -113,6 +119,9 @@ export class Planet extends Phaser.GameObjects.Image {
         if (this.healthBar) {
             this.healthBar.destroy();
         }
+        if (this.radarCircle) {
+            this.radarCircle.destroy();
+        }
         super.destroy();
     }
 
@@ -123,7 +132,10 @@ export class Planet extends Phaser.GameObjects.Image {
         // For now, just display the healthbar and return a blank dictionary of
         // planet info
         this.healthBar = new HealthBar(this.scene, this, this.mass, this.radius**2);
-        this.radarRange = radarRange
+        this.radarRange = radarRange;
+        // TODO: Create a new actual class for this instead of reusing the
+        // explosion effect?
+        this.radarCircle = new ExplosionEffect(this.scene, this.body.center, radarRange, radarRange, 99999999, 0xffffff, 0.1);
         return {};
     }
 }
@@ -304,10 +316,11 @@ export class GravityObject extends Phaser.GameObjects.Image {
 }
 
 class ExplosionEffect {
-    constructor (scene, position, startRadius=2, endRadius=5, duration=0.1, color=0xffffff) {
+    constructor (scene, position, startRadius=2, endRadius=5, duration=0.1, color=0xffffff, alpha=1.0) {
         this.graphic = new Phaser.GameObjects.Graphics(scene);
         this.position = position;
         this.color = color;
+        this.alpha = alpha
         this.startTime = new Date();
         this.duration = duration;
         this.startRadius = startRadius;
@@ -330,7 +343,7 @@ class ExplosionEffect {
         const percentDone = elapsedSeconds / this.duration;
         const currentRadius =  this.startRadius * (1.0 - percentDone) + this.endRadius * percentDone;
 
-        this.graphic.fillStyle(this.color);
+        this.graphic.fillStyle(this.color, this.alpha);
         this.graphic.fillCircle(this.position.x, this.position.y, currentRadius);
     }
 
